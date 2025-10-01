@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --taupe: #7E7266;
+  --blanc: #F9F8F6;
+}
+html, body, #root { height: 100%; }
+body { background: var(--blanc); color: var(--taupe); font-family: theme('fontFamily.serif'); }
