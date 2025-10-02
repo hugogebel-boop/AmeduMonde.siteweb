@@ -7,7 +7,6 @@ export default function OuPartir() {
       <p style={{ marginTop: 12, fontFamily: "ui-sans-serif, system-ui, sans-serif", fontSize: 18, lineHeight: "30px", color: "#7E7266" }}>
         Inspirez-vous : nous créons des itinéraires sur mesure, au bon tempo, loin des sentiers battus.
       </p>
-      {/* Tu pourras ajouter : grilles pays/régions, saisons, inspirations… */}
     </main>
   );
 }

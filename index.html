@@ -1,16 +1,17 @@
-<!-- 404.html (root du repo) -->
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="fr">
   <head>
-    <meta charset="utf-8" />
-    <title>Redirecting…</title>
-    <meta http-equiv="refresh" content="0; url=./?/%2F" />
-    <script>
-      // SPA fallback pour GitHub Pages (inspiré de rafgraph/spa-github-pages)
-      var l = window.location;
-      // Construit une query qui encode le path demandé
-      l.replace(l.protocol + '//' + l.host + l.pathname.replace(/404\.html$/, '') + '?/' + l.pathname.replace(/^\//, '') + l.search + l.hash);
-    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Âme du Monde</title>
+
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Le build Vite réécrira /src/main.tsx selon base -->
   </head>
-  <body>Redirecting…</body>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

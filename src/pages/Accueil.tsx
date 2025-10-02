@@ -14,7 +14,6 @@ function clamp01(x: number) { return Math.max(0, Math.min(1, x)) }
 /** Progress local basé sur viewport (meilleure précision pour sticky) */
 function useViewportProgress(sectionRef: React.RefObject<HTMLElement>, stickyPx: number) {
   const [p, setP] = useState(0) // 0 → 1 pendant la piste utile
-
   useEffect(() => {
     let raf = 0
     const onScroll = () => {
@@ -35,10 +34,8 @@ function useViewportProgress(sectionRef: React.RefObject<HTMLElement>, stickyPx:
       window.removeEventListener('resize', tick)
     }
   }, [sectionRef, stickyPx])
-
   return p
 }
-
 
 function useVH() {
   const [vh, setVh] = useState(0)
@@ -225,8 +222,6 @@ function StickyBandInverse({
 
 /* ===========================
    StepsStickyReveal
-   - ref sur la SECTION (piste), pas sur le sticky
-   - sticky fixe, 4 cartes apparaissent successivement
    =========================== */
 function StepsStickyReveal({
   trackVH = 240,
@@ -246,7 +241,7 @@ function StepsStickyReveal({
   const stickyH = Math.round((vh * stickyVH) / 100)
 
   const trackRef = useRef<HTMLDivElement | null>(null)
-  const [p, setP] = useState(0)            // progression 0→1
+  const [p, setP] = useState(0)
   const [phase, setPhase] = useState<'before' | 'pin' | 'after'>('before')
 
   useEffect(() => {
@@ -290,7 +285,7 @@ function StepsStickyReveal({
         alignItems: 'center',
         paddingLeft: 24,
         paddingRight: 24,
-        background: C.blanc, // évite le contenu qui “passe derrière”
+        background: C.blanc,
       }}
     >
       <div
@@ -311,7 +306,7 @@ function StepsStickyReveal({
           { n: '04', t: 'Accompagnement', d: 'Avant, pendant, après — vous profitez, on s’occupe du reste.' },
         ].map((step, i) => {
           const a = Math.max(0, Math.min(1, (p - thresholds[i]) / fadeWindow))
-          const appear = phase === 'after' ? 1 : easeOut(a) // en “after” tout est plein
+          const appear = phase === 'after' ? 1 : easeOut(a)
           const y = i * diagStepPx + (1 - appear) * 16
           const hidden = appear <= 0.001 && phase !== 'after'
           return (
@@ -362,7 +357,7 @@ function StepsStickyReveal({
       ref={trackRef}
       style={{
         height: trackH,
-        position: 'relative',   // clé pour les positions absolues before/after
+        position: 'relative',
         overflow: 'visible',
         transform: 'none',
         filter: 'none',
@@ -370,15 +365,10 @@ function StepsStickyReveal({
         background: C.blanc,
       }}
     >
-      {/* Réserve l'espace “écran” dans le flux */}
       <div style={{ height: stickyH }} />
-
-      {/* Même bloc, 1 seul rendu; on commute absolute/fixed/absolute */}
       <div style={layerPos}>
         {renderSteps()}
       </div>
-
-      {/* Air à la fin de piste */}
       <div style={{ height: 120 }} />
     </div>
   )
@@ -551,14 +541,19 @@ export default function Accueil() {
               </div>
             </div>
 
+            {/* >>> Bloc image (remplace l’ancien rectangle taupe) */}
             <div style={{ flex: '0 0 auto', marginLeft: 'auto', marginRight: 0 }}>
               <div
                 aria-hidden
+                role="img"
+                aria-label="Illustration — Notre agence"
                 style={{
                   width: 'clamp(280px, 32vw, 420px)',
                   height: 520,
-                  background: C.taupe,
-                  borderRadius: 16,
+                  backgroundImage: `url('/1.jpg')`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  borderRadius: 0,
                 }}
               />
             </div>
@@ -568,15 +563,20 @@ export default function Accueil() {
             className="mt-12 md:mt-14"
             style={{ display: 'flex', gap: 98, alignItems: 'center', flexWrap: 'wrap' }}
           >
+            {/* >>> Grand visuel (remplace l’ancien grand rectangle taupe) */}
             <div
               aria-hidden
+              role="img"
+              aria-label="Atmosphère de voyage — Notre agence"
               style={{
                 flex: '0 0 58%',
                 maxWidth: 680,
                 width: '100%',
                 height: 300,
-                background: C.taupe,
-                borderRadius: 16,
+                backgroundImage: `url('/2.jpg')`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                borderRadius: 0,
               }}
             />
             <div style={{ flex: '1 1 300px', minWidth: 280, display: 'flex', alignItems: 'center' }}>
@@ -592,23 +592,23 @@ export default function Accueil() {
         {/* Espace avant le sticky band */}
         <div style={{ height: Math.round(vh * 0.1) }} />
 
-        {/* ======= BANDEAU INVERSÉ : se referme complètement ======= */}
+        {/* ======= BANDEAU INVERSÉ ======= */}
         <StickyBandInverse
-        title="Une approche unique<br/>pour vos voyages"
-        bandColor={C.taupe}
-        textColor={C.blanc}
-        heightVH={100}
-        durationVH={250}
-        hideTitleWhenCovered={true}
-        handoffAdvancePx={0}
+          title="Une approche unique<br/>pour vos voyages"
+          bandColor={C.taupe}
+          textColor={C.blanc}
+          heightVH={100}
+          durationVH={250}
+          hideTitleWhenCovered={true}
+          handoffAdvancePx={0}
         />
 
         <StepsStickyReveal
-        trackVH={240}
-        stickyVH={80}
-        thresholds={[0.08, 0.30, 0.55, 0.80]}
-        fadeWindow={0.20}
-        diagStepPx={48}
+          trackVH={240}
+          stickyVH={80}
+          thresholds={[0.08, 0.30, 0.55, 0.80]}
+          fadeWindow={0.20}
+          diagStepPx={48}
         />
 
         {/* ======= UNE PROMESSE ======= */}
@@ -664,31 +664,30 @@ export default function Accueil() {
           </div>
         </section>
 
-{/* ======= BANDEAU TAUPE FULL-BLEED (zéro marge latérale) ======= */}
-<section
-  aria-hidden
-  style={{
-    position: 'relative',
-    /* sort du flux centré du wrapper pour prendre tout l'écran */
-    left: '50%',
-    transform: 'translateX(-50%)',
-    width: '100vw',
+        {/* ======= BANDEAU FULL-BLEED AVEC IMAGE (remplace le taupe) ======= */}
+        <section
+          aria-hidden
+          style={{
+            position: 'relative',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '100vw',
+            boxShadow: '0 0 0 1px transparent',
+            // Image 3
+            backgroundImage: `url('/3.jpg')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            // si tu veux un léger effet parallax natif : dé-commente
+            // backgroundAttachment: 'fixed',
 
-    /* micro overscan pour éviter tout liseré blanc selon les navigateurs */
-    boxShadow: '0 0 0 1px transparent', // évite l’anti-aliasing
-    background: C.taupe,
-
-    /* dimensions */
-    height: 'min(56vh, 640px)',
-    minHeight: 280,
-
-    /* pas de bordure ni de radius pour un vrai full-bleed */
-    margin: 0,
-    padding: 0,
-    border: 0,
-    borderRadius: 0,
-  }}
-/>
+            height: 'min(56vh, 640px)',
+            minHeight: 280,
+            margin: 0,
+            padding: 0,
+            border: 0,
+            borderRadius: 0,
+          }}
+        />
 
         {/* ======= CONTACT ======= */}
         <section

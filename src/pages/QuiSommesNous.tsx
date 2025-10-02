@@ -7,7 +7,6 @@ export default function QuiSommesNous() {
       <p style={{ marginTop: 12, fontFamily: "ui-sans-serif, system-ui, sans-serif", fontSize: 18, lineHeight: "30px", color: "#7E7266" }}>
         Maison de voyages sur-mesure, pour celles et ceux qui recherchent authenticité, culture et élégance — loin des sentiers battus.
       </p>
-      {/* Tu pourras ajouter équipe, manifeste, partenaires, etc. */}
     </main>
   );
 }
