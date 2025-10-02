@@ -2,8 +2,8 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 const C = {
   sable: '#EAD9B5',
-  taupe: '#7E7266',
-  ocre:  '#D98C4B',
+  taupe: '#D98C4B',
+  ocre:  '#7E7266',
   blanc: '#F9F8F6',
   bleu:  '#6E90A6',
   noir:  '#121212',
