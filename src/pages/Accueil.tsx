@@ -649,8 +649,8 @@ export default function Accueil() {
             {/* CONTENU */}
             <div style={{ position: 'relative', zIndex: 2 }}>
                 {/* ========= Notre agence ========= */}
-                <section style={{ maxWidth: 1160, margin: '0 auto', paddingTop: 8, paddingBottom: 0, paddingLeft: 24, paddingRight: 24 }}>
-                    <div className="container" style={{ display: 'flex', alignItems: 'center', gap: 'clamp(24px,4vw,56px)', flexWrap: 'wrap' }}>
+                <section style={{ maxWidth: 1160, margin: '0 auto', paddingTop: 8, paddingBottom: 16, paddingLeft: 24, paddingRight: 24 }}>
+                    <div className="container" style={{ display: 'flex', alignItems: 'center', gap: 'clamp(24px,4vw,56px)', rowGap: 'clamp(28px,5vw,72px)', flexWrap: 'wrap', marginBottom: 'clamp(28px,6vw,72px)'}}>
                         <div style={{ flex: '1 1 460px', minWidth: 320, minHeight: 520, display: 'flex', alignItems: 'center', paddingLeft: 0 }}>
                             <div style={{ maxWidth: '56ch' }}>
                                 <h2 className="m-0" style={{ color: C.cuivre, fontSize: 'clamp(38px,3.6vw,52px)', letterSpacing: '.02em' }}>
@@ -680,7 +680,7 @@ export default function Accueil() {
                         </div>
                     </div>
 
-                    <div className="mt-12 md:mt-14 container" style={{ display: 'flex', gap: 98, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div className="mt-12 md:mt-14 container" style={{ display: 'flex', gap: 'clamp(24px,5vw,72px)', rowGap: 'clamp(24px,5vw,64px)', alignItems: 'center', flexWrap: 'wrap' }}>
                         {/* Grand visuel (paysage) */}
                         <div
                             aria-hidden
