@@ -1,4 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
+// tout en haut de Accueil.tsx (ou dans un utils.ts que tu importes)
+const asset = (p: string) => `${import.meta.env.BASE_URL}${p.replace(/^\/+/, '')}`;
 
 const C = {
   sable: '#EAD9B5',
@@ -440,7 +442,7 @@ export default function Accueil() {
         <div
           style={{
             position: 'absolute', inset: 0,
-            backgroundImage: `url(/hero.jpg)`,
+            backgroundImage: `url(${asset('hero.jpg')})`,
             backgroundSize: 'cover', backgroundPosition: 'center'
           }}
         />

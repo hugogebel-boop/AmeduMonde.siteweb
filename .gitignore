@@ -1,16 +1,27 @@
+# deps
 node_modules/
+
+# build
 dist/
-dist-ssr/
 .vite/
-*.tsbuildinfo
+
+# IDE/OS
+.vscode/
+.idea/
 .DS_Store
 Thumbs.db
-.idea/
-.vscode/*
-!.vscode/extensions.json
-.env
-.env.*
+*.swp
+*.log
+
+# env
+.env*
 !.env.example
-coverage/
-cypress/videos/
-cypress/screenshots/
+
+# Visual Studio & caches
+.vs/
+*.user
+*.suo
+*.vsidx
+
+# OneDrive temp files
+~$*
