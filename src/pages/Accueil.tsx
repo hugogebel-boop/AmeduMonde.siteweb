@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 // ⚠️ Dans public/index.html, ajoute bien dans <head> :
 // <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -20,7 +20,7 @@ const C = {
 function clamp01(x: number) { return Math.max(0, Math.min(1, x)) }
 
 /* ──────────────────────────────────────────────────────────────
-   Breakpoints & global helpers
+   Helpers responsive
    ────────────────────────────────────────────────────────────── */
 function useBreakpoint() {
     const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1920)
@@ -30,12 +30,7 @@ function useBreakpoint() {
         window.addEventListener('resize', on, { passive: true })
         return () => window.removeEventListener('resize', on)
     }, [])
-    return {
-        w,
-        isPhone: w <= 480,
-        isTablet: w > 480 && w <= 960,
-        isDesktop: w > 960,
-    }
+    return { w, isPhone: w <= 480, isTablet: w > 480 && w <= 960, isDesktop: w > 960 }
 }
 
 function SafeAreaPad({ children }: { children: React.ReactNode }) {
@@ -52,42 +47,50 @@ function SafeAreaPad({ children }: { children: React.ReactNode }) {
 function MobileGlobalCSS() {
     return (
         <style>{`
-      /* typographie & layout responsive */
-      @media (max-width: 480px) { html { font-size: 17px; } }
-      .bg-cover-center { background-size: cover; background-position: center; image-rendering: auto; }
-      .container { width: min(1160px, 92%); margin: 0 auto; padding-left: 16px; padding-right: 16px; }
+  /* typographie & layout responsive */
+  @media (max-width: 480px) { html { font-size: 17px; } }
+  .bg-cover-center { background-size: cover; background-position: center; image-rendering: auto; }
+  .container { width: min(1160px, 92%); margin: 0 auto; padding-left: 16px; padding-right: 16px; }
 
-      /* steps layout hints (desktop/tablet) */
-      @media (max-width: 960px) { .steps-row { gap: 40px; } }
-      @media (max-width: 640px) {
-        .steps-row { flex-wrap: wrap; gap: 28px; justify-content: center; }
-        .step-card { min-width: 45%; }
-      }
-      @media (max-width: 480px) { .step-card { min-width: 100%; } }
+  @media (max-width: 960px) { .steps-row { gap: 40px; } }
+  @media (max-width: 640px) {
+    .steps-row { flex-wrap: wrap; gap: 28px; justify-content: center; }
+    .step-card { min-width: 45%; }
+  }
+  @media (max-width: 480px) { .step-card { min-width: 100%; } }
 
-      /* mobile/touch smoothness */
-      html, body { scroll-behavior: auto; overscroll-behavior-y: contain; }
-      body { -webkit-overflow-scrolling: touch; }
-      * { -webkit-tap-highlight-color: transparent; }
+  /* mobile/touch smoothness — évite les rebonds et le "ping" */
+  html, body { scroll-behavior: auto; overscroll-behavior-y: contain; }
+  body { -webkit-overflow-scrolling: touch; }
+  * { -webkit-tap-highlight-color: transparent; }
 
-      /* boutons sur mobile */
-      @media (hover: none) {
-        .btn-tap { transition: opacity .15s ease; }
-        .btn-tap:active { opacity: .85; transform: none !important; }
-      }
-    `}</style>
+  /* isolation de paint pour les grands calques */
+  .isolate { contain: paint; backface-visibility: hidden; transform: translateZ(0); }
+
+  /* lazy paint pour sections lourdes */
+  .cv-auto { content-visibility: auto; contain-intrinsic-size: 800px 600px; }
+
+  /* boutons sur mobile */
+  @media (hover: none) {
+    .btn-tap { transition: opacity .15s ease; }
+    .btn-tap:active { opacity: .85; transform: none !important; }
+  }
+
+  /* évite les transitions fantômes lors de l’inversion du scroll */
+  .fixed-smooth { will-change: transform; }
+`}</style>
     )
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Mesures viewport & scroll
+   Mesures viewport & scroll (optimisées)
    ────────────────────────────────────────────────────────────── */
 function useVH() {
     const [vh, setVh] = useState(0)
     useEffect(() => {
         const u = () => setVh(window.innerHeight)
         u()
-        window.addEventListener('resize', u)
+        window.addEventListener('resize', u, { passive: true })
         // @ts-ignore
         window.visualViewport?.addEventListener?.('resize', u)
         return () => {
@@ -99,39 +102,63 @@ function useVH() {
     return vh
 }
 
-function useHeroProgress(heroH: number) {
-    const [p, setP] = useState(0)
+/** Un SEUL listener scroll → rAF → y */
+function useRafScroll() {
+    const [y, setY] = useState(0)
+    const rafRef = useRef(0)
+    const yRef = useRef(0)
+
     useEffect(() => {
-        const on = () => setP(clamp01(window.scrollY / Math.max(1, heroH)))
-        on()
-        window.addEventListener('scroll', on, { passive: true })
-        return () => window.removeEventListener('scroll', on)
-    }, [heroH])
-    return p
+        const read = () => (window.scrollY ?? window.pageYOffset ?? 0)
+        const tick = () => { rafRef.current = 0; const next = read(); if (next !== yRef.current) { yRef.current = next; setY(next) } }
+        const onScroll = () => { if (rafRef.current) return; rafRef.current = requestAnimationFrame(tick) }
+
+        // init
+        yRef.current = read(); setY(yRef.current)
+        window.addEventListener('scroll', onScroll, { passive: true })
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden' && rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = 0 }
+        }, { passive: true })
+
+        return () => {
+            window.removeEventListener('scroll', onScroll)
+            if (rafRef.current) cancelAnimationFrame(rafRef.current)
+        }
+    }, [])
+    return y
 }
 
-function useScrollY(): number {
-    const [y, setY] = React.useState(0);
-    React.useEffect(() => {
-        let raf = 0;
-        const read = () => (window.scrollY ?? window.pageYOffset ?? 0);
-        const tick = () => { raf = 0; setY(read()); };
-        const onScroll = () => { if (raf) return; raf = requestAnimationFrame(tick); };
-        setY(read());
-        window.addEventListener('scroll', onScroll, { passive: true });
-        const onVis = () => { if (document.visibilityState === 'hidden' && raf) { cancelAnimationFrame(raf); raf = 0; } };
-        document.addEventListener('visibilitychange', onVis);
+/** mesure absolue d’un élément (offsetTop) + hauteur, recalculée au resize */
+function useAbsMetrics<T extends HTMLElement>(ref: React.RefObject<T>) {
+    const [m, setM] = useState({ top: 0, height: 0 })
+    const measure = useMemo(() => () => {
+        const el = ref.current; if (!el) return
+        let top = 0; let node: HTMLElement | null = el
+        while (node) { top += node.offsetTop; node = node.offsetParent as HTMLElement | null }
+        const height = el.offsetHeight
+        setM({ top, height })
+    }, [ref])
+
+    useLayoutEffect(() => { measure() }, [measure])
+    useEffect(() => {
+        const ro = new ResizeObserver(() => measure())
+        if (ref.current) ro.observe(ref.current)
+        const on = () => measure()
+        window.addEventListener('resize', on, { passive: true })
+        // @ts-ignore
+        window.visualViewport?.addEventListener?.('resize', on)
         return () => {
-            window.removeEventListener('scroll', onScroll);
-            document.removeEventListener('visibilitychange', onVis);
-            if (raf) cancelAnimationFrame(raf);
-        };
-    }, []);
-    return y;
+            ro.disconnect()
+            window.removeEventListener('resize', on)
+            // @ts-ignore
+            window.visualViewport?.removeEventListener?.('resize', on)
+        }
+    }, [measure, ref])
+    return m
 }
 
 /* ──────────────────────────────────────────────────────────────
-   GlobalStyles (accroche animée)
+   Accroche animée (identique visuellement)
    ────────────────────────────────────────────────────────────── */
 function GlobalStyles() {
     return (
@@ -145,58 +172,6 @@ function GlobalStyles() {
     )
 }
 
-/* ──────────────────────────────────────────────────────────────
-   Accroche ligne (lettres)
-   ────────────────────────────────────────────────────────────── */
-function AccrocheLine({
-    text,
-    align = 'left',
-    fontSize = 'clamp(24px,6vw,64px)',
-    letterSpacing = '0.015em',
-    delayStartMs = 0,
-    stepDelayMs = 22,
-}: {
-    text: string
-    align?: 'left' | 'right' | 'center'
-    fontSize?: string
-    letterSpacing?: string
-    delayStartMs?: number
-    stepDelayMs?: number
-}) {
-    const chars = Array.from(text)
-    return (
-        <h2
-            className="m-0"
-            style={{
-                color: C.taupe,
-                fontSize,
-                letterSpacing,
-                lineHeight: 1.08,
-                textAlign: align,
-                minHeight: '1.1em',
-                ['--accroche-size' as any]: fontSize,
-            }}
-            aria-label={text}
-        >
-            {chars.map((ch, i) => (
-                <span
-                    key={i}
-                    className="accroche-char"
-                    style={{
-                        ['--i' as any]: i,
-                        animationDelay: `calc(${delayStartMs}ms + var(--i) * ${stepDelayMs}ms)`,
-                    } as React.CSSProperties}
-                >
-                    {ch === ' ' ? '\u00A0' : ch}
-                </span>
-            ))}
-        </h2>
-    )
-}
-
-/* ──────────────────────────────────────────────────────────────
-   Accroche scroll-réactive
-   ────────────────────────────────────────────────────────────── */
 const AccrocheLineScroll = React.memo(function AccrocheLineScroll({
     text,
     progress,
@@ -231,13 +206,8 @@ const AccrocheLineScroll = React.memo(function AccrocheLineScroll({
         <h2
             className="m-0"
             style={{
-                color: C.taupe,
-                fontSize,
-                letterSpacing,
-                lineHeight: 1.08,
-                textAlign: align,
-                minHeight: '1.1em',
-                ['--accroche-size' as any]: fontSize,
+                color: C.taupe, fontSize, letterSpacing, lineHeight: 1.08,
+                textAlign: align, minHeight: '1.1em', ['--accroche-size' as any]: fontSize,
             }}
             aria-label={text}
         >
@@ -281,7 +251,7 @@ function getTopOffset(extra = 0): number {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   StickyBandSequence — version optimisée mobile
+   StickyBandSequence — même rendu, calculs sans reflow en scroll
    ────────────────────────────────────────────────────────────── */
 function StickyBandSequence({
     title = 'Une approche unique pour vos voyages',
@@ -290,6 +260,7 @@ function StickyBandSequence({
     stickyVH = 100,
     durationVH = 140,
     triggerAdvanceVH = 20,
+    handoffGuardPx = 8, // marge anti-chevauchement (coupe un peu avant le haut)
 }: {
     title?: string
     bandColor?: string
@@ -297,102 +268,82 @@ function StickyBandSequence({
     stickyVH?: number
     durationVH?: number
     triggerAdvanceVH?: number
+    handoffGuardPx?: number
 }) {
     const vh = useVH()
     const stickyH = Math.max(1, Math.round((vh * stickyVH) / 100))
     const phaseH = Math.max(1, Math.round((vh * durationVH) / 100))
     const trackH = phaseH * 2
 
-    const sectionRef = useRef<HTMLElement | null>(null)
-    const [p, setP] = useState(0)
-    const [phase, setPhase] = useState<'before' | 'pin' | 'after'>('before')
-    const [topOffsetReal, setTopOffsetReal] = useState(getTopOffset())
-    const advancePx = Math.round((vh * triggerAdvanceVH) / 100)
-    const sentDone = useRef(false)
+    const sectionRef = React.useRef<HTMLElement | null>(null)
+    const { top: absTop, height: absHeight } = useAbsMetrics(sectionRef)
+    const y = useRafScroll()
 
-    // Écouteurs stables (pas de rebind à chaque frame)
-    useEffect(() => {
-        let raf = 0
-        const EPS = 0.0008
-
-        const onScrollCompute = () => {
-            const el = sectionRef.current; if (!el) return
-            const rect = el.getBoundingClientRect()
-            const toReal = getTopOffset()
-            const toTrig = toReal - advancePx
-
-            if (toReal !== topOffsetReal) setTopOffsetReal(toReal)
-
-            const total = Math.max(1, rect.height - stickyH)
-            const advanced = Math.min(total, Math.max(0, toTrig - rect.top))
-            const np = advanced / total
-
-            setP(prev => (Math.abs(prev - np) > EPS ? np : prev))
-
-            if (rect.top - toTrig > 0) {
-                setPhase(prev => (prev !== 'before' ? 'before' : prev))
-            } else if (rect.bottom >= stickyH + toTrig) {
-                setPhase(prev => (prev !== 'pin' ? 'pin' : prev))
-            } else {
-                setPhase(prev => (prev !== 'after' ? 'after' : prev))
-            }
-
-            if (np >= 0.999 && !sentDone.current) {
-                sentDone.current = true
-                window.dispatchEvent(new CustomEvent('amd_band_done', { detail: { stickyH, topOffset: toReal } }))
-            }
-            if (np < 0.5 && sentDone.current) sentDone.current = false
-        }
-
-        const tick = () => { if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(onScrollCompute) }
-
-        // première mesure
-        tick()
-        window.addEventListener('scroll', tick, { passive: true })
-        window.addEventListener('resize', tick)
-        // garder visualViewport *resize* (barres iOS), supprimer visualViewport *scroll*
+    // offset sous la barre de nav (mesuré uniquement au resize)
+    const [topOffset, setTopOffset] = React.useState(getTopOffset())
+    React.useEffect(() => {
+        const upd = () => setTopOffset(getTopOffset())
+        window.addEventListener('resize', upd, { passive: true })
         // @ts-ignore
-        window.visualViewport?.addEventListener?.('resize', tick)
-
+        window.visualViewport?.addEventListener?.('resize', upd)
         return () => {
-            if (raf) cancelAnimationFrame(raf)
-            window.removeEventListener('scroll', tick)
-            window.removeEventListener('resize', tick)
+            window.removeEventListener('resize', upd)
             // @ts-ignore
-            window.visualViewport?.removeEventListener?.('resize', tick)
+            window.visualViewport?.removeEventListener?.('resize', upd)
         }
-        // ne rebinder qu'en cas de changement des constantes réelles
-    }, [stickyH, advancePx, topOffsetReal])
+    }, [])
 
-    // Progression (révélation puis recouvrement)
+    // Géométrie (sans reflow pendant le scroll)
+    const rectTop = absTop - y
+    const rectBottom = rectTop + absHeight
+    const triggerTop = topOffset - Math.round((vh * triggerAdvanceVH) / 100)
+
+    const total = Math.max(1, absHeight - stickyH)
+    const advanced = Math.min(total, Math.max(0, triggerTop - rectTop))
+    const p = advanced / total
+
+    // Phases (le calque reste FIXE, aucune translation)
+    const phase: 'before' | 'pin' | 'after' =
+        (rectTop - triggerTop > 0) ? 'before'
+            : (rectBottom >= stickyH + triggerTop + handoffGuardPx) ? 'pin' : 'after'
+
+    // Révélation / recouvrement (clip + overlay)
     const ease = (t: number) => { const c = Math.min(1, Math.max(0, t)); return c * c * (3 - 2 * c) }
     const split = 0.5
     const inReveal = p < split
     const revealP = inReveal ? ease(p / split) : 1
     const coverP = inReveal ? 0 : ease((p - split) / (1 - split))
-    const preClipTop = (1 - revealP) * 100
-    const clipStyle: React.CSSProperties = inReveal
-        ? { clipPath: `inset(${preClipTop}% 0 0 0)` }
-        : { clipPath: 'inset(0 0 0 0)' }
+    const clipTopPercent = (1 - revealP) * 100
 
-    const coverOverlayStyle: React.CSSProperties = {
-        position: 'absolute', inset: 0, background: C.blanc,
-        transform: `scaleY(${coverP})`, transformOrigin: 'bottom', willChange: 'transform', pointerEvents: 'none',
-    }
-
-    const fixedLayer: React.CSSProperties = {
-        position: 'fixed', top: 0, left: 0, right: 0, height: stickyH,
-        transform: `translate3d(0, ${topOffsetReal}px, 0)`,
-        zIndex: 6, overflow: 'hidden', background: 'transparent',
-        willChange: 'transform',
-        paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)',
-    }
+    // Handoff unique une fois la garde franchie
+    const sentDone = React.useRef(false)
+    React.useEffect(() => {
+        const reached = p >= 0.999 || (rectBottom <= stickyH + triggerTop + handoffGuardPx + 0.5)
+        if (reached && !sentDone.current) {
+            sentDone.current = true
+            window.dispatchEvent(new CustomEvent('amd_band_done', { detail: { stickyH, topOffset } }))
+        }
+        if (!reached && sentDone.current) sentDone.current = false
+    }, [p, rectBottom, stickyH, triggerTop, handoffGuardPx, topOffset])
 
     return (
         <section ref={sectionRef as any} style={{ height: trackH, position: 'relative' }}>
             {phase === 'pin' && (
-                <div style={fixedLayer} className="fixed-smooth" aria-hidden>
-                    <div style={{ position: 'absolute', inset: 0, ...clipStyle }}>
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: topOffset, left: 0, right: 0, height: stickyH,
+                        zIndex: 9,
+                        overflow: 'hidden',
+                        background: 'transparent',
+                        paddingLeft: 'env(safe-area-inset-left)',
+                        paddingRight: 'env(safe-area-inset-right)',
+                        willChange: 'auto', // pas de transform dynamique → aucun déplacement
+                    }}
+                    aria-hidden
+                >
+                    {/* Révélation par clipPath uniquement */}
+                    <div style={{ position: 'absolute', inset: 0, clipPath: `inset(${clipTopPercent}% 0 0 0)` }}>
                         <div style={{ position: 'absolute', inset: 0, background: bandColor }} />
                         <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', pointerEvents: 'none' }}>
                             <h2
@@ -405,15 +356,25 @@ function StickyBandSequence({
                                     whiteSpace: 'nowrap',
                                     textAlign: 'center',
                                     padding: '0 24px',
-                                    textShadow: 'none',
-                                    opacity: 1,
                                 }}
                             >
                                 {title}
                             </h2>
                         </div>
                     </div>
-                    {!inReveal && <div style={coverOverlayStyle} />}
+
+                    {/* Recouvrement (blanc) par scaleY — toujours sur le calque fixe */}
+                    {!inReveal && (
+                        <div
+                            style={{
+                                position: 'absolute', inset: 0, background: C.blanc,
+                                transform: `scaleY(${coverP})`,
+                                transformOrigin: 'bottom',
+                                pointerEvents: 'none',
+                                willChange: coverP > 0 && coverP < 1 ? 'transform' : 'auto',
+                            }}
+                        />
+                    )}
                 </div>
             )}
         </section>
@@ -421,10 +382,7 @@ function StickyBandSequence({
 }
 
 /* ──────────────────────────────────────────────────────────────
-   StepsStickyReveal (responsive)
-   ────────────────────────────────────────────────────────────── */
-/* ──────────────────────────────────────────────────────────────
-   StepsStickyReveal — version optimisée mobile
+   StepsStickyReveal — même rendu, calculs sans reflow en scroll
    ────────────────────────────────────────────────────────────── */
 function StepsStickyReveal({
     trackVH = 160,
@@ -454,7 +412,6 @@ function StepsStickyReveal({
         window.addEventListener('amd_band_done', onDone as any)
         // @ts-ignore
         window.visualViewport?.addEventListener?.('resize', onVV)
-        // (pas de visualViewport.scroll, trop bruyant)
         return () => {
             window.removeEventListener('amd_band_done', onDone as any)
             // @ts-ignore
@@ -508,14 +465,18 @@ function StepsStickyReveal({
 
     const effectiveP = armed ? p : 0
 
+    // Couche : fixe pendant PIN, sinon absolue
     const layerPos: React.CSSProperties =
         phase === 'before'
             ? { position: 'absolute', top: 0, left: 0, right: 0, height: stickyH }
             : phase === 'pin'
                 ? {
                     position: 'fixed', top: 0, left: 0, right: 0, height: stickyH,
-                    zIndex: 10, transform: `translate3d(0, ${topOffset}px, 0)`,
-                    willChange: 'transform', pointerEvents: 'none', background: 'transparent',
+                    zIndex: 10,
+                    transform: `translate3d(0, ${topOffset}px, 0)`,
+                    willChange: 'transform',
+                    pointerEvents: 'none',
+                    background: 'transparent',
                 }
                 : { position: 'absolute', left: 0, right: 0, bottom: 0, height: stickyH }
 
@@ -542,9 +503,10 @@ function StepsStickyReveal({
                         gap: 72, textAlign: 'center', flexWrap: 'nowrap', width: '100%',
                     }}>
                         {steps.map((step, i) => {
+                            // ⬇️ Apparition statique (opacité uniquement). AUCUN translate.
                             const a = Math.max(0, Math.min(1, (effectiveP - thresholds[i]) / fadeWindow))
                             const appear = phase === 'after' ? 1 : a
-                            const y = i * 48 + (1 - appear) * 16
+                            const will = appear > 0 && appear < 1 ? 'opacity' : 'auto'
                             const hidden = appear <= 0.001 && phase !== 'after'
                             return (
                                 <div
@@ -552,9 +514,8 @@ function StepsStickyReveal({
                                     className="step-card"
                                     style={{
                                         minWidth: 220,
-                                        transform: `translateY(${y}px) translateZ(0)`,
                                         opacity: appear,
-                                        willChange: 'transform, opacity',
+                                        willChange: will as any,
                                         visibility: hidden ? 'hidden' : 'visible',
                                     }}
                                 >
@@ -575,7 +536,7 @@ function StepsStickyReveal({
 }
 
 /* ──────────────────────────────────────────────────────────────
-   StepsStickyVertical (responsive)
+   StepsVertical — inchangé (IO déjà fluide)
    ────────────────────────────────────────────────────────────── */
 function StepsVertical() {
     const ref = React.useRef<HTMLDivElement | null>(null)
@@ -589,10 +550,7 @@ function StepsVertical() {
             entries.forEach(e => {
                 const i = Number((e.target as HTMLElement).dataset.stepIndex || -1)
                 if (i >= 0 && e.isIntersecting) {
-                    setVisible(prev => {
-                        if (prev[i]) return prev
-                        const cp = prev.slice(); cp[i] = true; return cp
-                    })
+                    setVisible(prev => { if (prev[i]) return prev; const cp = prev.slice(); cp[i] = true; return cp })
                 }
             })
         }, { rootMargin: '0px 0px -15% 0px', threshold: 0.2 })
@@ -621,7 +579,7 @@ function StepsVertical() {
                                 opacity: on ? 1 : 0,
                                 transform: `translateY(${on ? 0 : 12}px)`,
                                 transition: 'opacity .28s ease, transform .28s ease',
-                                willChange: 'transform, opacity',
+                                willChange: 'auto',
                                 background: 'transparent',
                                 padding: '14px 4px',
                             }}
@@ -648,14 +606,13 @@ function StepsVertical() {
 export default function Accueil() {
     const vh = useVH()
     const heroH = Math.round(Math.max(1, vh))
-    const cover = useHeroProgress(heroH)
-    const y = useScrollY()
+    const y = useRafScroll()
 
     const A = 'Vivez une expérience unique'
     const B = 'à travers le monde.'
 
     const REVEAL_SPAN = Math.round(heroH * 1.0)
-    const revealP = clamp01(tFrom(y, heroH) / Math.max(1, REVEAL_SPAN))
+    const revealP = clamp01((Math.max(0, y - heroH) / Math.max(1, REVEAL_SPAN)))
 
     const abRef = useRef<HTMLDivElement | null>(null)
     const [accH, setAccH] = useState(0)
@@ -666,7 +623,7 @@ export default function Accueil() {
             setAccH(Math.ceil(r.height))
         }
         measure()
-        window.addEventListener('resize', measure)
+        window.addEventListener('resize', measure, { passive: true })
         return () => window.removeEventListener('resize', measure)
     }, [vh])
 
@@ -677,19 +634,14 @@ export default function Accueil() {
     const targetY = -accH - GAP_PX
     const DIST = Math.max(1, startY - targetY)
     const HANDOFF_SPAN = DIST
-    const handoffP = clamp01((tFrom(y, heroH) - REVEAL_SPAN) / HANDOFF_SPAN)
+    const handoffP = clamp01(((Math.max(0, y - heroH) - REVEAL_SPAN) / HANDOFF_SPAN))
     const currentY = startY + handoffP * (targetY - startY)
     const fadeOutA = 1 - clamp01((handoffP - 0.85) / 0.15)
     const handoffDone = handoffP >= 0.999
     const PAGE_PAD = REVEAL_SPAN + HANDOFF_SPAN
-    const [hideHeroCover, setHideHeroCover] = useState(false)
-    useEffect(() => {
-        const onPin = () => setHideHeroCover(true)
-        window.addEventListener('amd_band_done', onPin as any)
-        return () => window.removeEventListener('amd_band_done', onPin as any)
-    }, [])
     const EXTRA_GAP_PX = Math.round((vh * 12) / 100)
     const bp = useBreakpoint()
+
     return (
         <div className="font-[Cormorant_Garamond]" style={{ color: C.taupe, background: C.blanc, margin: 0, overflowX: 'hidden' }}>
             <GlobalStyles />
@@ -698,11 +650,12 @@ export default function Accueil() {
             {/* espace réservé au HERO */}
             <div style={{ height: heroH }} />
 
-            {/* HERO fixe */}
+            {/* HERO fixe (identique visuellement) */}
             {!handoffDone && (
                 <div
                     style={{ position: 'fixed', inset: '0 0 auto 0', height: heroH, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}
                     aria-hidden
+                    className="isolate"
                 >
                     <div
                         className="bg-cover-center"
@@ -713,7 +666,8 @@ export default function Accueil() {
                             Âme du Monde
                         </h1>
                     </div>
-                    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: cover * heroH, background: C.blanc }} />
+                    {/* cover piloté par y / heroH — identique mais sans écouteur scroll dédié */}
+                    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: clamp01(y / Math.max(1, heroH)) * heroH, background: C.blanc }} />
                 </div>
             )}
 
@@ -758,7 +712,7 @@ export default function Accueil() {
             <div style={{ position: 'relative', zIndex: 2 }}>
                 {/* ========= Notre agence ========= */}
                 <section style={{ maxWidth: 1160, margin: '0 auto', paddingTop: 8, paddingBottom: 16, paddingLeft: 24, paddingRight: 24 }}>
-                    <div className="container" style={{ display: 'flex', alignItems: 'center', gap: 'clamp(24px,4vw,56px)', rowGap: 'clamp(28px,5vw,72px)', flexWrap: 'wrap', marginBottom: 'clamp(28px,6vw,72px)'}}>
+                    <div className="container" style={{ display: 'flex', alignItems: 'center', gap: 'clamp(24px,4vw,56px)', rowGap: 'clamp(28px,5vw,72px)', flexWrap: 'wrap', marginBottom: 'clamp(28px,6vw,72px)' }}>
                         <div style={{ flex: '1 1 460px', minWidth: 320, minHeight: 520, display: 'flex', alignItems: 'center', paddingLeft: 0 }}>
                             <div style={{ maxWidth: '56ch' }}>
                                 <h2 className="m-0" style={{ color: C.cuivre, fontSize: 'clamp(38px,3.6vw,52px)', letterSpacing: '.02em' }}>
@@ -777,7 +731,7 @@ export default function Accueil() {
                                 aria-hidden
                                 role="img"
                                 aria-label="Illustration — Notre agence"
-                                className="bg-cover-center"
+                                className="bg-cover-center cv-auto"
                                 style={{
                                     width: 'min(420px, 80vw)',
                                     aspectRatio: '3 / 4',
@@ -794,7 +748,7 @@ export default function Accueil() {
                             aria-hidden
                             role="img"
                             aria-label="Atmosphère de voyage — Notre agence"
-                            className="bg-cover-center"
+                            className="bg-cover-center cv-auto"
                             style={{
                                 flex: '1 1 58%',
                                 maxWidth: 680,
@@ -857,7 +811,7 @@ export default function Accueil() {
                 {/* ======= BANDEAU FULL-BLEED AVEC IMAGE ======= */}
                 <section
                     aria-hidden
-                    className="bg-cover-center"
+                    className="bg-cover-center cv-auto"
                     style={{
                         position: 'relative',
                         left: '50%',
