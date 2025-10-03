@@ -68,15 +68,46 @@ function useHeroProgress(heroH: number) {
     return p
 }
 
-function useScrollY() {
-    const [y, setY] = useState(0)
-    useEffect(() => {
-        const on = () => setY(window.scrollY)
-        on()
-        window.addEventListener('scroll', on, { passive: true })
-        return () => window.removeEventListener('scroll', on)
-    }, [])
-    return y
+function useScrollY(): number {
+  const [y, setY] = React.useState(0);
+
+  React.useEffect(() => {
+    let raf = 0;
+
+    const read = () => (window.scrollY ?? window.pageYOffset ?? 0);
+
+    const tick = () => {
+      raf = 0;
+      setY(read());
+    };
+
+    const onScroll = () => {
+      if (raf) return;            // déjà prévu pour cette frame
+      raf = requestAnimationFrame(tick);
+    };
+
+    // init (au cas où on arrive mid-scroll)
+    setY(read());
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    // évite une rAF qui traîne si l’onglet passe hidden
+    const onVis = () => {
+      if (document.visibilityState === 'hidden' && raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      document.removeEventListener('visibilitychange', onVis);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  return y;
 }
 
 /** Progress local 0→1 à l’intérieur d’une section (spanPx = longueur de piste utile) */
@@ -103,10 +134,80 @@ function useLocalProgress(sectionRef: React.RefObject<HTMLElement>, spanPx: numb
 }
 
 /* ===========================
+   CSS global (animation accroche) injecté dans le fichier
+   =========================== */
+function GlobalStyles() {
+    return (
+        <style>{`
+@keyframes accroche-reveal { to { opacity: 1; transform: translateY(0); } }
+.accroche-char {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(12px);
+  animation: accroche-reveal 700ms cubic-bezier(.2,.65,.35,1) forwards;
+  will-change: transform, opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+  .accroche-char { animation: none !important; opacity: 1 !important; transform: none !important; }
+}
+`}</style>
+    )
+}
+
+/* ===========================
+   Accroche (ligne) — lettres qui apparaissent une à une
+   =========================== */
+function AccrocheLine({
+    text,
+    align = 'left',
+    fontSize = 'clamp(24px,6vw,64px)',
+    letterSpacing = '0.015em',
+    delayStartMs = 0,   // décalage de départ (utile pour la 2e ligne)
+    stepDelayMs = 22,   // délai entre lettres
+}: {
+    text: string
+    align?: 'left' | 'right' | 'center'
+    fontSize?: string
+    letterSpacing?: string
+    delayStartMs?: number
+    stepDelayMs?: number
+}) {
+    const chars = Array.from(text)
+    return (
+        <h2
+            className="m-0"
+            style={{
+                color: C.taupe,
+                fontSize,
+                letterSpacing,
+                lineHeight: 1.08,
+                textAlign: align,
+                minHeight: '1.1em',
+                ['--accroche-size' as any]: fontSize, // exposé pour réutilisation (ex: bandeau inverse)
+            }}
+            aria-label={text}
+        >
+            {chars.map((ch, i) => (
+                <span
+                    key={i}
+                    className="accroche-char"
+                    style={{
+                        ['--i' as any]: i,
+                        animationDelay: `calc(${delayStartMs}ms + var(--i) * ${stepDelayMs}ms)`,
+                    } as React.CSSProperties}
+                >
+                    {ch === ' ' ? '\u00A0' : ch}
+                </span>
+            ))}
+        </h2>
+    )
+}
+
+/* ===========================
    StickyBandInverse (avec handoffAdvancePx)
    =========================== */
 function StickyBandInverse({
-    title = 'Une approche unique<br/>pour vos voyages',
+    title = 'Une approche unique pour vos voyages',
     bandColor = C.taupe,
     textColor = C.blanc,
     heightVH = 100,
@@ -202,7 +303,7 @@ function StickyBandInverse({
                         <h2
                             className="m-0"
                             style={{
-                                fontSize: 'clamp(40px,6vw,72px)',
+                                fontSize: 'clamp(40px,3vw,72px)',
                                 lineHeight: 1.15,
                                 fontWeight: 700,
                                 letterSpacing: '-0.01em',
@@ -386,21 +487,95 @@ function StepsStickyReveal({
 /* ===========================
    PAGE
    =========================== */
+/** Accroche scroll-réactive (lettre par lettre, réversible) */
+/** Accroche scroll-réactive corrigée (pas de lettre fantôme, dernière lettre = 100%) */
+/** Accroche scroll-réactive corrigée — dernière lettre visible à temps */
+const AccrocheLineScroll = React.memo(function AccrocheLineScroll({
+    text,
+    progress,
+    align = 'left',
+    fontSize = 'clamp(24px,6vw,64px)',
+    letterSpacing = '0.015em',
+    hardness = 1.0,
+    yOffset = 12,
+}: {
+    text: string
+    progress: number
+    align?: 'left' | 'right' | 'center'
+    fontSize?: string
+    letterSpacing?: string
+    hardness?: number
+    yOffset?: number
+}) {
+    const chars = React.useMemo(() => Array.from(text), [text])
+    const n = chars.length
+    const rList = React.useMemo(() => {
+        if (n <= 1) return [1]
+        const LAST_EPS = 0.015
+        return Array.from({ length: n }, (_, i) =>
+            i === n - 1 ? Math.max(0, 1 - LAST_EPS) : i / (n - 1)
+        )
+    }, [n])
+
+    const smooth = (t: number) => {
+        const c = Math.min(1, Math.max(0, t))
+        return c * c * (3 - 2 * c)
+    }
+
+    // mappe 0..~0.4% à 0 et ~99.2%..1 à 1 (évite ghost/fin inatteignable)
+    const P0 = 0.004, P1 = 0.992
+    const p = progress <= P0 ? 0 : progress >= P1 ? 1 : (progress - P0) / (P1 - P0)
+
+    return (
+        <h2
+            className="m-0"
+            style={{
+                color: C.taupe,
+                fontSize,
+                letterSpacing,
+                lineHeight: 1.08,
+                textAlign: align,
+                minHeight: '1.1em',
+                ['--accroche-size' as any]: fontSize,
+            }}
+            aria-label={text}
+        >
+            {chars.map((ch, i) => {
+                const r = rList[i]
+                const denom = Math.max(1e-6, 1 - r)
+                let a = (p - r) / denom
+                a = smooth(Math.pow(Math.min(1, Math.max(0, a)), hardness))
+                const ty = (1 - a) * yOffset
+                const op = a
+                return (
+                    <span
+                        key={i}
+                        style={{
+                            display: 'inline-block',
+                            transform: `translate3d(0, ${ty}px, 0)`, // GPU
+                            opacity: op,
+                            // évite de forcer une nouvelle couche à chaque span
+                            willChange: op === 0 || op === 1 ? 'auto' : 'transform, opacity',
+                        }}
+                    >
+                        {ch === ' ' ? '\u00A0' : ch}
+                    </span>
+                )
+            })}
+        </h2>
+    )
+})
 export default function Accueil() {
     const vh = useVH()
     const heroH = Math.round(Math.max(1, vh))
     const cover = useHeroProgress(heroH)
     const y = useScrollY()
 
-    const A = 'Vivez une expérience unique...'
-    const B = '...à travers le monde.'
+    const A = 'Vivez une expérience unique'
+    const B = 'à travers le monde.'
 
     const REVEAL_SPAN = Math.round(heroH * 1.0)
     const revealP = clamp01(tFrom(y, heroH) / Math.max(1, REVEAL_SPAN))
-    const pA = Math.min(revealP / 0.6, 1)
-    const pB = revealP <= 0.6 ? 0 : Math.min((revealP - 0.6) / 0.4, 1)
-    const countA = revealP > 0 ? Math.max(1, Math.floor(A.length * pA)) : 0
-    const countB = pB > 0 ? Math.max(1, Math.floor(B.length * pB)) : 0
 
     const abRef = useRef<HTMLDivElement | null>(null)
     const [accH, setAccH] = useState(0)
@@ -413,9 +588,9 @@ export default function Accueil() {
         measure()
         window.addEventListener('resize', measure)
         return () => window.removeEventListener('resize', measure)
-    }, [vh, countA, countB])
+    }, [vh])
 
-    const GAP_VH = 12
+    const GAP_VH = 20
     const GAP_PX = (vh * GAP_VH) / 100
 
     const startY = Math.max(0, (heroH - accH) / 2)
@@ -435,6 +610,8 @@ export default function Accueil() {
             className="font-[Cormorant_Garamond]"
             style={{ color: C.taupe, background: C.blanc, margin: 0, overflowX: 'hidden' }} // texte par défaut -> #5a3317
         >
+            <GlobalStyles />
+
             {/* espace réservé au HERO */}
             <div style={{ height: heroH }} />
 
@@ -447,35 +624,36 @@ export default function Accueil() {
                     }}
                     aria-hidden
                 >
-                <div
-                    style={{
-                        position: 'absolute', inset: 0,
-                        backgroundImage: `url(${asset('hero.jpg')})`,
-                        backgroundSize: 'cover', backgroundPosition: 'center'
-                    }}
-                />
-                <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
-                    <h1
-                        className="m-0 font-normal tracking-[0.1em]"
-                        style={{ color: C.blanc, textShadow: '0 2px 18px rgba(0,0,0,0.35)', fontSize: '8vw' }}
-                    >
-                        Âme du Monde
-                    </h1>
+                    <div
+                        style={{
+                            position: 'absolute', inset: 0,
+                            backgroundImage: `url(${asset('hero.jpg')})`,
+                            backgroundSize: 'cover', backgroundPosition: 'center'
+                        }}
+                    />
+                    <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
+                        <h1
+                            className="m-0 font-normal tracking-[0.1em]"
+                            style={{ color: C.blanc, textShadow: '0 2px 18px rgba(0,0,0,0.35)', fontSize: '8vw' }}
+                        >
+                            Âme du Monde
+                        </h1>
+                    </div>
+                    <div
+                        style={{
+                            position: 'absolute', left: 0, right: 0, bottom: 0,
+                            height: cover * heroH, background: C.blanc
+                        }}
+                    />
                 </div>
-                <div
-                    style={{
-                        position: 'absolute', left: 0, right: 0, bottom: 0,
-                        height: cover * heroH, background: C.blanc
-                    }}
-                />
-            </div>
             )}
+
             {/* accroche A/B */}
             <div
                 style={{
                     position: 'fixed', inset: 0,
                     zIndex: 3, pointerEvents: 'none',
-                    display: cover >= 0.98 && !handoffDone ? 'block' : 'none',
+                    display: revealP >= 0.0 && !handoffDone ? 'block' : 'none', // on l'affiche pendant le reveal
                 }}
                 aria-hidden
             >
@@ -487,18 +665,28 @@ export default function Accueil() {
                     }}
                 >
                     <div style={{ width: 'min(1160px, 92%)', margin: '0 auto', padding: '0 24px' }}>
-                        <h2
-                            className="m-0"
-                            style={{ color: C.taupe, fontSize: 'clamp(24px,6vw,64px)', lineHeight: 1.08, textAlign: 'left', minHeight: '1.1em' }}
-                        >
-                            {A.slice(0, countA)}
-                        </h2>
-                        <h2
-                            className="m-0"
-                            style={{ color: C.taupe, fontSize: 'clamp(24px,6vw,64px)', lineHeight: 1.08, textAlign: 'right', marginTop: 16, minHeight: '1.1em' }}
-                        >
-                            {B.slice(0, countB)}
-                        </h2>
+                        {/* progression de A et B basée sur ton découpage 60% / 40% */}
+                        <AccrocheLineScroll
+                            text={A}
+                            progress={Math.min(1, revealP / 0.6)}         // 0→1 entre 0% et 60%
+                            align="left"
+                            fontSize="clamp(24px,6vw,64px)"
+                            letterSpacing="0.015em"
+                            spread={1.0}
+                            windowSize={0.10}                              // un peu plus doux lettre par lettre
+                            yOffset={12}
+                        />
+                        <div style={{ height: 16 }} />
+                        <AccrocheLineScroll
+                            text={B}
+                            progress={revealP <= 0.6 ? 0 : Math.min(1, (revealP - 0.6) / 0.4)} // 0→1 entre 60% et 100%
+                            align="right"
+                            fontSize="clamp(24px,6vw,64px)"
+                            letterSpacing="0.015em"
+                            spread={1.0}
+                            windowSize={0.10}
+                            yOffset={12}
+                        />
                     </div>
                 </div>
             </div>
