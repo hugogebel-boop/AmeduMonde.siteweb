@@ -52,15 +52,25 @@ function SafeAreaPad({ children }: { children: React.ReactNode }) {
 function MobileGlobalCSS() {
     return (
         <style>{`
+      /* typographie & layout responsive */
       @media (max-width: 480px) { html { font-size: 17px; } }
       .bg-cover-center { background-size: cover; background-position: center; image-rendering: auto; }
       .container { width: min(1160px, 92%); margin: 0 auto; padding-left: 16px; padding-right: 16px; }
+
+      /* steps layout hints (desktop/tablet) */
       @media (max-width: 960px) { .steps-row { gap: 40px; } }
       @media (max-width: 640px) {
         .steps-row { flex-wrap: wrap; gap: 28px; justify-content: center; }
         .step-card { min-width: 45%; }
       }
       @media (max-width: 480px) { .step-card { min-width: 100%; } }
+
+      /* mobile/touch smoothness */
+      html, body { scroll-behavior: auto; overscroll-behavior-y: contain; }
+      body { -webkit-overflow-scrolling: touch; }
+      * { -webkit-tap-highlight-color: transparent; }
+
+      /* boutons sur mobile */
       @media (hover: none) {
         .btn-tap { transition: opacity .15s ease; }
         .btn-tap:active { opacity: .85; transform: none !important; }
@@ -443,14 +453,14 @@ function StepsStickyReveal({
             const el = trackRef.current; if (!el) return
             const rect = el.getBoundingClientRect()
             const to = topOffset
-
             const total = Math.max(1, rect.height - stickyH)
             const advanced = Math.min(total, Math.max(0, to - rect.top))
-            setP(advanced / total)
+            const np = advanced / total
+            if (np !== p) setP(np)
 
-            if (rect.top - to > 0) setPhase('before')
-            else if (rect.bottom >= stickyH + to) setPhase('pin')
-            else setPhase('after')
+            if (rect.top - to > 0) { if (phase !== 'before') setPhase('before') }
+            else if (rect.bottom >= stickyH + to) { if (phase !== 'pin') setPhase('pin') }
+            else { if (phase !== 'after') setPhase('after') }
         }
         const tick = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(onScroll) }
         tick()
@@ -469,11 +479,9 @@ function StepsStickyReveal({
             // @ts-ignore
             window.visualViewport?.removeEventListener?.('scroll', tick)
         }
-    }, [stickyH, topOffset, trackH])
+    }, [stickyH, topOffset, trackH, p, phase])
 
-    const easeOut = (t: number) => t * (2 - t)
     const effectiveP = armed ? p : 0
-
     const layerPos: React.CSSProperties =
         phase === 'before'
             ? { position: 'absolute', top: 0, left: 0, right: 0, height: stickyH }
@@ -481,55 +489,124 @@ function StepsStickyReveal({
                 ? { position: 'fixed', top: 0, left: 0, right: 0, height: stickyH, zIndex: 10, transform: `translateY(${topOffset}px)`, willChange: 'transform', pointerEvents: 'none', background: 'transparent' }
                 : { position: 'absolute', left: 0, right: 0, bottom: 0, height: stickyH }
 
-    const renderSteps = () => (
-        <div style={{
-            maxWidth: 1160, height: '100%', margin: '0 auto',
-            display: 'flex', justifyContent: 'center', alignItems: 'center',
-            paddingLeft: 24, paddingRight: 24, background: 'transparent',
-        }}>
-            <div className="steps-row" style={{
-                display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-                gap: 72, textAlign: 'center', flexWrap: 'nowrap', width: '100%',
-            }}>
-                {[
-                    { n: '01', t: 'Écoute', d: 'On clarifie vos envies, votre rythme et vos contraintes.' },
-                    { n: '02', t: 'Conception', d: 'Un itinéraire sur-mesure, pensé pour le bon tempo.' },
-                    { n: '03', t: 'Organisation', d: 'Transferts, réservations, adresses rares préparées pour vous.' },
-                    { n: '04', t: 'Accompagnement', d: 'Avant, pendant, après — vous profitez, on s’occupe du reste.' },
-                ].map((step, i) => {
-                    const a = Math.max(0, Math.min(1, (effectiveP - thresholds[i]) / fadeWindow))
-                    const appear = phase === 'after' ? 1 : easeOut(a)
-                    const y = i * 48 + (1 - appear) * 16
-                    const hidden = appear <= 0.001 && phase !== 'after'
+    const steps = [
+        { n: '01', t: 'Écoute', d: 'On clarifie vos envies, votre rythme et vos contraintes.' },
+        { n: '02', t: 'Conception', d: 'Un itinéraire sur-mesure, pensé pour le bon tempo.' },
+        { n: '03', t: 'Organisation', d: 'Transferts, réservations, adresses rares préparées pour vous.' },
+        { n: '04', t: 'Accompagnement', d: 'Avant, pendant, après — vous profitez, on s’occupe du reste.' },
+    ]
+
+    return (
+        <div ref={trackRef} style={{ height: trackH, position: 'relative', overflow: 'visible', zIndex: 8, background: 'transparent' }}>
+            <div style={layerPos}>
+                <div style={{
+                    maxWidth: 1160, height: '100%', margin: '0 auto',
+                    display: 'flex', justifyContent: 'center', alignItems: 'center',
+                    paddingLeft: 24, paddingRight: 24, background: 'transparent',
+                }}>
+                    <div className="steps-row" style={{
+                        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+                        gap: 72, textAlign: 'center', flexWrap: 'nowrap', width: '100%',
+                    }}>
+                        {steps.map((step, i) => {
+                            const a = Math.max(0, Math.min(1, (effectiveP - thresholds[i]) / fadeWindow))
+                            // pas de transition CSS : on calcule directement la position / opacité
+                            const appear = phase === 'after' ? 1 : a
+                            const y = i * 48 + (1 - appear) * 16
+                            const hidden = appear <= 0.001 && phase !== 'after'
+                            return (
+                                <div
+                                    key={step.n}
+                                    className="step-card"
+                                    style={{
+                                        minWidth: 220,
+                                        transform: `translateY(${y}px) translateZ(0)`,
+                                        opacity: appear,
+                                        willChange: 'transform, opacity',
+                                        visibility: hidden ? 'hidden' : 'visible',
+                                    }}
+                                >
+                                    <h3 className="m-0" style={{ fontSize: 20, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: C.cuivre, marginBottom: 8, whiteSpace: 'nowrap' }}>
+                                        {step.n}. {step.t}
+                                    </h3>
+                                    <p style={{ fontSize: 16, lineHeight: 1.6, color: 'rgba(90,51,23,.95)', margin: 0, maxWidth: 260 }}>
+                                        {step.d}
+                                    </p>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+/* ──────────────────────────────────────────────────────────────
+   StepsStickyVertical (responsive)
+   ────────────────────────────────────────────────────────────── */
+function StepsVertical() {
+    const ref = React.useRef<HTMLDivElement | null>(null)
+    const [visible, setVisible] = useState<boolean[]>(new Array(4).fill(false))
+
+    useEffect(() => {
+        const el = ref.current
+        if (!el) return
+        const items = Array.from(el.querySelectorAll('[data-step]'))
+        const io = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                const i = Number((e.target as HTMLElement).dataset.stepIndex || -1)
+                if (i >= 0 && e.isIntersecting) {
+                    setVisible(prev => {
+                        if (prev[i]) return prev
+                        const cp = prev.slice(); cp[i] = true; return cp
+                    })
+                }
+            })
+        }, { rootMargin: '0px 0px -15% 0px', threshold: 0.2 })
+        items.forEach(it => io.observe(it))
+        return () => io.disconnect()
+    }, [])
+
+    const steps = [
+        { n: '01', t: 'Écoute', d: 'On clarifie vos envies, votre rythme et vos contraintes.' },
+        { n: '02', t: 'Conception', d: 'Un itinéraire sur-mesure, pensé pour le bon tempo.' },
+        { n: '03', t: 'Organisation', d: 'Transferts, réservations, adresses rares préparées pour vous.' },
+        { n: '04', t: 'Accompagnement', d: 'Avant, pendant, après — vous profitez, on s’occupe du reste.' },
+    ]
+
+    return (
+        <section ref={ref} style={{ padding: '36px 16px 12px' }}>
+            <div style={{ maxWidth: 720, margin: '0 auto' }}>
+                {steps.map((s, i) => {
+                    const on = visible[i]
                     return (
                         <div
-                            key={step.n}
-                            className="step-card"
+                            key={s.n}
+                            data-step
+                            data-step-index={i}
                             style={{
-                                minWidth: 220,
-                                transform: `translateY(${y}px)`,
-                                opacity: appear,
-                                transition: phase === 'after' ? 'none' : 'opacity .28s ease, transform .28s ease',
-                                visibility: hidden ? 'hidden' : 'visible',
+                                opacity: on ? 1 : 0,
+                                transform: `translateY(${on ? 0 : 12}px)`,
+                                transition: 'opacity .28s ease, transform .28s ease',
+                                willChange: 'transform, opacity',
+                                background: 'transparent',
+                                padding: '14px 4px',
                             }}
                         >
-                            <h3 className="m-0" style={{ fontSize: 20, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: C.cuivre, marginBottom: 8, whiteSpace: 'nowrap' }}>
-                                {step.n}. {step.t}
+                            <h3 className="m-0" style={{ fontSize: 18, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: C.cuivre, marginBottom: 6 }}>
+                                {s.n}. {s.t}
                             </h3>
-                            <p style={{ fontSize: 16, lineHeight: 1.6, color: 'rgba(90,51,23,.95)', margin: 0, maxWidth: 260 }}>
-                                {step.d}
+                            <p className="m-0 font-sans" style={{ fontSize: 16, lineHeight: 1.65, color: 'rgba(90,51,23,.95)' }}>
+                                {s.d}
                             </p>
+                            <div style={{ height: 10 }} />
+                            <div style={{ height: 1, background: 'rgba(90,51,23,.12)' }} />
                         </div>
                     )
                 })}
             </div>
-        </div>
-    )
-
-    return (
-        <div ref={trackRef} style={{ height: trackH, position: 'relative', overflow: 'visible', zIndex: 8, background: 'transparent' }}>
-            <div style={layerPos}>{renderSteps()}</div>
-        </div>
+        </section>
     )
 }
 
@@ -541,7 +618,6 @@ export default function Accueil() {
     const heroH = Math.round(Math.max(1, vh))
     const cover = useHeroProgress(heroH)
     const y = useScrollY()
-    const { isPhone, isTablet } = useBreakpoint()
 
     const A = 'Vivez une expérience unique'
     const B = 'à travers le monde.'
@@ -581,7 +657,7 @@ export default function Accueil() {
         return () => window.removeEventListener('amd_band_done', onPin as any)
     }, [])
     const EXTRA_GAP_PX = Math.round((vh * 12) / 100)
-
+    const bp = useBreakpoint()
     return (
         <div className="font-[Cormorant_Garamond]" style={{ color: C.taupe, background: C.blanc, margin: 0, overflowX: 'hidden' }}>
             <GlobalStyles />
@@ -709,20 +785,21 @@ export default function Accueil() {
                 <div style={{ height: Math.round(vh * 0.0) }} />
 
                 <StickyBandSequence
-                    title="Une approche unique pour vos voyages"
-                    bandColor={C.taupe}
-                    textColor={C.blanc}
-                    stickyVH={isPhone ? 90 : isTablet ? 95 : 100}
-                    durationVH={isPhone ? 110 : isTablet ? 125 : 140}
-                    triggerAdvanceVH={isPhone ? 16 : 22}
+                    stickyVH={bp.isPhone ? 90 : bp.isTablet ? 95 : 100}
+                    durationVH={bp.isPhone ? 110 : bp.isTablet ? 125 : 140}
+                    triggerAdvanceVH={bp.isPhone ? 16 : 22}
                 />
 
-                <StepsStickyReveal
-                    trackVH={isPhone ? 180 : isTablet ? 170 : 160}
-                    stickyVH={isPhone ? 70 : isTablet ? 75 : 80}
-                    thresholds={isPhone ? [0.00, 0.27, 0.54, 0.81] : [0.00, 0.22, 0.48, 0.74]}
-                    fadeWindow={0.20}
-                />
+                {bp.isPhone ? (
+                    <StepsVertical />
+                ) : (
+                    <StepsStickyReveal
+                        trackVH={bp.isTablet ? 170 : 160}
+                        stickyVH={bp.isTablet ? 75 : 80}
+                        thresholds={[0.00, 0.22, 0.48, 0.74]}
+                        fadeWindow={0.20}
+                    />
+                )}
 
                 {/* ======= UNE PROMESSE ======= */}
                 <section style={{ background: C.blanc, paddingTop: 80, paddingBottom: 80 }}>
