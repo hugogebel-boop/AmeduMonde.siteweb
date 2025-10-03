@@ -878,7 +878,7 @@ export default function Accueil() {
             </div>
 
             {/* air en bas */}
-            <div style={{ height: Math.round(vh * 0.3) }} />
+            <div style={{ height: Math.round(vh * 0.1) }} />
         </div>
     )
 }
