@@ -280,9 +280,6 @@ function getTopOffset(extra = 0): number {
     return Math.round(vvTop + navH + mt + mb + extra)
 }
 
-/* ──────────────────────────────────────────────────────────────
-   StickyBandSequence — version optimisée mobile
-   ────────────────────────────────────────────────────────────── */
 function StickyBandSequence({
     title = 'Une approche unique pour vos voyages',
     bandColor = C.taupe,
@@ -310,28 +307,37 @@ function StickyBandSequence({
     const advancePx = Math.round((vh * triggerAdvanceVH) / 100)
     const sentDone = useRef(false)
 
-    // Écouteurs stables (pas de rebind à chaque frame)
+    // ⚠️ EPS plus large sur phone (moins de setState)
+    const isPhone = useBreakpoint().isPhone
+    const EPS = isPhone ? 0.0018 : 0.0008
+
+    // Utilise offsetTop/offsetHeight (évite getBoundingClientRect à chaque frame)
     useEffect(() => {
         let raf = 0
-        const EPS = 0.0008
 
         const onScrollCompute = () => {
             const el = sectionRef.current; if (!el) return
-            const rect = el.getBoundingClientRect()
-            const toReal = getTopOffset()
-            const toTrig = toReal - advancePx
 
+            const toReal = getTopOffset()
             if (toReal !== topOffsetReal) setTopOffsetReal(toReal)
 
-            const total = Math.max(1, rect.height - stickyH)
-            const advanced = Math.min(total, Math.max(0, toTrig - rect.top))
+            // lectures layout (regroupées et uniques par tick)
+            const elTop = el.offsetTop
+            const elH = el.offsetHeight
+            const total = Math.max(1, elH - stickyH)
+
+            // position du haut de la fenêtre + déclenchement avancé
+            const scrollTop = (window.scrollY || 0)
+            const toTrig = toReal - advancePx
+            const advanced = Math.min(total, Math.max(0, (scrollTop + toTrig) - elTop))
             const np = advanced / total
 
             setP(prev => (Math.abs(prev - np) > EPS ? np : prev))
 
-            if (rect.top - toTrig > 0) {
+            // phase
+            if ((scrollTop + toTrig) < elTop) {
                 setPhase(prev => (prev !== 'before' ? 'before' : prev))
-            } else if (rect.bottom >= stickyH + toTrig) {
+            } else if ((scrollTop + toTrig) <= elTop + total) {
                 setPhase(prev => (prev !== 'pin' ? 'pin' : prev))
             } else {
                 setPhase(prev => (prev !== 'after' ? 'after' : prev))
@@ -346,11 +352,11 @@ function StickyBandSequence({
 
         const tick = () => { if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(onScrollCompute) }
 
-        // première mesure
+        // 1ère mesure
         tick()
         window.addEventListener('scroll', tick, { passive: true })
         window.addEventListener('resize', tick)
-        // garder visualViewport *resize* (barres iOS), supprimer visualViewport *scroll*
+        // garder visualViewport *resize* (barres iOS), pas de *scroll*
         // @ts-ignore
         window.visualViewport?.addEventListener?.('resize', tick)
 
@@ -361,25 +367,16 @@ function StickyBandSequence({
             // @ts-ignore
             window.visualViewport?.removeEventListener?.('resize', tick)
         }
-        // ne rebinder qu'en cas de changement des constantes réelles
-    }, [stickyH, advancePx, topOffsetReal])
+    }, [stickyH, advancePx, topOffsetReal, EPS])
 
-    // Progression (révélation puis recouvrement)
+    // Éasing + split
     const ease = (t: number) => { const c = Math.min(1, Math.max(0, t)); return c * c * (3 - 2 * c) }
     const split = 0.5
     const inReveal = p < split
     const revealP = inReveal ? ease(p / split) : 1
     const coverP = inReveal ? 0 : ease((p - split) / (1 - split))
-    const preClipTop = (1 - revealP) * 100
-    const clipStyle: React.CSSProperties = inReveal
-        ? { clipPath: `inset(${preClipTop}% 0 0 0)` }
-        : { clipPath: 'inset(0 0 0 0)' }
 
-    const coverOverlayStyle: React.CSSProperties = {
-        position: 'absolute', inset: 0, background: C.blanc,
-        transform: `scaleY(${coverP})`, transformOrigin: 'bottom', willChange: 'transform', pointerEvents: 'none',
-    }
-
+    // Styles fixes
     const fixedLayer: React.CSSProperties = {
         position: 'fixed', top: 0, left: 0, right: 0, height: stickyH,
         transform: `translate3d(0, ${topOffsetReal}px, 0)`,
@@ -388,31 +385,55 @@ function StickyBandSequence({
         paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)',
     }
 
+    // 🎭 Rideau haut (pour la phase "révélation") — on le pousse vers le haut
+    const curtainTopStyle: React.CSSProperties = {
+        position: 'absolute', inset: 0,
+        background: bandColor,
+        transform: `translate3d(0, ${(-1 + revealP) * 100}%, 0)`, // de 0% à -100%
+        willChange: 'transform',
+    }
+
+    // 🧾 Couche texte (toujours visible sous le rideau)
+    const textLayerStyle: React.CSSProperties = {
+        position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', pointerEvents: 'none',
+    }
+
+    // 🧻 Rideau blanc (recouvrement) — scaleY du bas vers le haut
+    const coverOverlayStyle: React.CSSProperties = {
+        position: 'absolute', inset: 0, background: C.blanc,
+        transform: `scaleY(${coverP})`,
+        transformOrigin: 'bottom',
+        willChange: 'transform',
+        pointerEvents: 'none',
+    }
+
     return (
         <section ref={sectionRef as any} style={{ height: trackH, position: 'relative' }}>
             {phase === 'pin' && (
                 <div style={fixedLayer} className="fixed-smooth" aria-hidden>
-                    <div style={{ position: 'absolute', inset: 0, ...clipStyle }}>
-                        <div style={{ position: 'absolute', inset: 0, background: bandColor }} />
-                        <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', pointerEvents: 'none' }}>
-                            <h2
-                                className="m-0"
-                                style={{
-                                    color: textColor,
-                                    fontSize: 'var(--accroche-size, clamp(24px,6vw,64px))',
-                                    lineHeight: 1.2,
-                                    letterSpacing: '0.015em',
-                                    whiteSpace: 'nowrap',
-                                    textAlign: 'center',
-                                    padding: '0 24px',
-                                    textShadow: 'none',
-                                    opacity: 1,
-                                }}
-                            >
-                                {title}
-                            </h2>
-                        </div>
+                    {/* rideau haut qui se lève (GPU transform) */}
+                    <div style={curtainTopStyle} />
+
+                    {/* contenu du bandeau */}
+                    <div style={textLayerStyle}>
+                        <h2
+                            className="m-0 no-shadow-during-pin"
+                            style={{
+                                color: textColor,
+                                fontSize: 'var(--accroche-size, clamp(24px,6vw,64px))',
+                                lineHeight: 1.2,
+                                letterSpacing: '0.015em',
+                                whiteSpace: 'nowrap',
+                                textAlign: 'center',
+                                padding: '0 24px',
+                                opacity: 1,
+                            }}
+                        >
+                            {title}
+                        </h2>
                     </div>
+
+                    {/* recouvrement blanc (phase 2) */}
                     {!inReveal && <div style={coverOverlayStyle} />}
                 </div>
             )}
@@ -420,9 +441,6 @@ function StickyBandSequence({
     )
 }
 
-/* ──────────────────────────────────────────────────────────────
-   StepsStickyReveal (responsive)
-   ────────────────────────────────────────────────────────────── */
 /* ──────────────────────────────────────────────────────────────
    StepsStickyReveal — version optimisée mobile
    ────────────────────────────────────────────────────────────── */
@@ -845,8 +863,8 @@ export default function Accueil() {
 
                 <StickyBandSequence
                     stickyVH={bp.isPhone ? 90 : bp.isTablet ? 95 : 100}
-                    durationVH={bp.isPhone ? 110 : bp.isTablet ? 125 : 140}
-                    triggerAdvanceVH={bp.isPhone ? 16 : 22}
+                    durationVH={bp.isPhone ? 115 : bp.isTablet ? 125 : 140}
+                    triggerAdvanceVH={bp.isPhone ? 20 : 22}   // 20–22 : safe
                 />
 
                 {bp.isPhone ? (
