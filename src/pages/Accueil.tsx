@@ -336,7 +336,7 @@ function StepsStickyReveal({
                                     fontWeight: 600,
                                     letterSpacing: '.08em',
                                     textTransform: 'uppercase',
-                                    color: C.taupe, // -> #5a3317
+                                    color: C.cuivre, // -> #5a3317
                                     marginBottom: 8,
                                     whiteSpace: 'nowrap',
                                 }}
@@ -456,7 +456,7 @@ export default function Accueil() {
                 <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
                     <h1
                         className="m-0 font-normal tracking-[0.1em]"
-                        style={{ color: '#ffffff', textShadow: '0 2px 18px rgba(0,0,0,0.35)', fontSize: '8vw' }}
+                        style={{ color: C.blanc, textShadow: '0 2px 18px rgba(0,0,0,0.35)', fontSize: '8vw' }}
                     >
                         Âme du Monde
                     </h1>
@@ -539,7 +539,7 @@ export default function Accueil() {
                         >
                             <div style={{ maxWidth: '56ch' }}>
                                 <h2 className="m-0"
-                                    style={{ color: C.sable, fontSize: 'clamp(38px,3.6vw,52px)', letterSpacing: '.02em' }}>
+                                    style={{ color: C.cuivre, fontSize: 'clamp(38px,3.6vw,52px)', letterSpacing: '.02em' }}>
                                     Notre agence
                                 </h2>
                                 <p className="mt-3 font-sans"
@@ -643,7 +643,7 @@ export default function Accueil() {
                             style={{
                                 fontSize: 32,
                                 fontWeight: 600,
-                                color: C.taupe, // -> #5a3317
+                                color: C.cuivre, // -> #5a3317
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.05em',
                                 margin: 0,
@@ -666,7 +666,7 @@ export default function Accueil() {
                             où chaque moment a sa place. Pas de démesure inutile, seulement la beauté des
                             lieux, la richesse des cultures, et la liberté de n’avoir rien à gérer.
                             <br /><br />
-                            <span style={{ color: C.taupe, fontWeight: 600 }}>
+                            <span style={{ color: C.cuivre, fontWeight: 600 }}>
                                 Notre promesse&nbsp;: vous offrir le privilège de voyager autrement.
                             </span>
                         </p>
@@ -716,7 +716,7 @@ export default function Accueil() {
                             className="m-0"
                             style={{
                                 fontSize: 'clamp(28px,3vw,36px)',
-                                color: C.taupe, // -> #5a3317
+                                color: C.cuivre, // -> #5a3317
                                 fontWeight: 600,
                                 letterSpacing: '0.02em',
                             }}
@@ -749,7 +749,7 @@ export default function Accueil() {
                                     padding: '14px 28px',
                                     borderRadius: 14,
                                     border: `1px solid ${C.taupe}`,
-                                    background: C.taupe,
+                                    background: C.cuivre,
                                     color: C.blanc,
                                     textDecoration: 'none',
                                     fontWeight: 500,
