@@ -439,13 +439,14 @@ export default function Accueil() {
             <div style={{ height: heroH }} />
 
             {/* HERO fixe */}
-            <div
-                style={{
-                    position: 'fixed', inset: '0 0 auto 0', height: heroH,
-                    zIndex: 0, pointerEvents: 'none', overflow: 'hidden'
-                }}
-                aria-hidden
-            >
+            {!handoffDone && (
+                <div
+                    style={{
+                        position: 'fixed', inset: '0 0 auto 0', height: heroH,
+                        zIndex: 0, pointerEvents: 'none', overflow: 'hidden'
+                    }}
+                    aria-hidden
+                >
                 <div
                     style={{
                         position: 'absolute', inset: 0,
@@ -468,7 +469,7 @@ export default function Accueil() {
                     }}
                 />
             </div>
-
+            )}
             {/* accroche A/B */}
             <div
                 style={{
@@ -774,7 +775,7 @@ export default function Accueil() {
             </div>
 
             {/* air en bas */}
-            <div style={{ height: Math.round(vh * 1.2) }} />
+            <div style={{ height: Math.round(vh * 0.3) }} />
         </div>
     )
 }
