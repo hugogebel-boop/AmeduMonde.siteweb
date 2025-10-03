@@ -206,124 +206,219 @@ function AccrocheLine({
 /* ===========================
    StickyBandInverse (avec handoffAdvancePx)
    =========================== */
-/* ============ StickyBandInverse (une ligne, même taille que accroche) ============ */
-/* ============ StickyBandInverse (full, one-liner, same size as accroche) ============ */
-/* ============ StickyBandInverse (safe zone anti-clipping) ============ */
-/* ============ StickyBandInverse (safe zone élargie) ============ */
-function StickyBandInverse({
+function getSafeTop(): number {
+    // Décale sous la barre d'adresse mobile si présente
+    // (fallback 0 sur desktop)
+    // @ts-ignore
+    return (window.visualViewport?.offsetTop ?? 0);
+}
+function getNavHeight(): number {
+    const el = document.getElementById('site-nav') as HTMLElement | null;
+    if (!el) return 0;
+    const h = el.offsetHeight || el.getBoundingClientRect().height || 0;
+    const cs = getComputedStyle(el);
+    const mt = parseFloat(cs.marginTop || '0') || 0;
+    const mb = parseFloat(cs.marginBottom || '0') || 0;
+    return Math.round(h + mt + mb);
+}
+
+function getTopOffset(extra = 0): number {
+    // @ts-ignore
+    const vvTop = window.visualViewport?.offsetTop ?? 0; // barre d’adresse mobile
+    return vvTop + getNavHeight() + extra;
+}
+
+
+/* ===========================
+   StickyBandInverse — offset header + after-pin fluide
+   =========================== */
+function StickyBandSequence({
     title = 'Une approche unique pour vos voyages',
-    bandColor = C.taupe,
-    textColor = C.blanc,
-    heightVH = 100,
-    durationVH = 250,
-    hideTitleWhenCovered = true,
-    handoffAdvancePx = 0, // ← now used
+    bandColor = C.taupe,      // couleur du bandeau pendant le pin
+    textColor = C.blanc,      // couleur du texte (pas d’opacité ni glow)
+    stickyVH = 100,
+    durationVH = 140,         // <-- même durée pour REVEAL et COVER
 }: {
     title?: string
     bandColor?: string
     textColor?: string
-    heightVH?: number
+    stickyVH?: number
     durationVH?: number
-    hideTitleWhenCovered?: boolean
-    handoffAdvancePx?: number
 }) {
     const vh = useVH()
-    const stickyH = Math.round((vh * heightVH) / 100)
-    const trackH = Math.round((vh * durationVH) / 100)
+    const stickyH = Math.max(1, Math.round((vh * stickyVH) / 100))
+
+    // piste: 2 * duration (1x reveal + 1x cover)
+    const phaseH = Math.max(1, Math.round((vh * durationVH) / 100))
+    const trackH = phaseH * 2
 
     const sectionRef = useRef<HTMLElement | null>(null)
-    const [p, setP] = useState(0)
-    const [inPin, setInPin] = useState(false)
+    const [p, setP] = useState(0) // 0→1 sur toute la piste
+    const [phase, setPhase] = useState<'before' | 'pin' | 'after'>('before')
+    const [topOffset, setTopOffset] = useState(getTopOffset())
+    const sentDone = useRef(false)
 
     useEffect(() => {
         let raf = 0
         const onScroll = () => {
-            const el = sectionRef.current
-            if (!el) return
+            const el = sectionRef.current; if (!el) return
             const rect = el.getBoundingClientRect()
+            const to = getTopOffset()
+            if (to !== topOffset) setTopOffset(to)
+
             const total = Math.max(1, rect.height - stickyH)
-            const advanced = Math.min(total, Math.max(0, -rect.top))
-            setP(advanced / total)
-            setInPin(rect.top <= 0 && rect.bottom >= stickyH)
+            const advanced = Math.min(total, Math.max(0, to - rect.top))
+            const np = advanced / total
+            setP(np)
+
+            if (rect.top - to > 0) setPhase('before')
+            else if (rect.bottom >= stickyH + to) setPhase('pin')
+            else setPhase('after')
+
+            if (np >= 0.999 && !sentDone.current) {
+                sentDone.current = true
+                window.dispatchEvent(new CustomEvent('amd_band_done', {
+                    detail: { stickyH, topOffset: to }
+                }))
+            }
+            if (np < 0.5 && sentDone.current) sentDone.current = false
         }
         const tick = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(onScroll) }
         tick()
         window.addEventListener('scroll', tick, { passive: true })
         window.addEventListener('resize', tick)
-        return () => { cancelAnimationFrame(raf); window.removeEventListener('scroll', tick); window.removeEventListener('resize', tick) }
-    }, [stickyH])
+        // @ts-ignore
+        window.visualViewport?.addEventListener?.('resize', tick)
+        // @ts-ignore
+        window.visualViewport?.addEventListener?.('scroll', tick)
+        return () => {
+            cancelAnimationFrame(raf)
+            window.removeEventListener('scroll', tick)
+            window.removeEventListener('resize', tick)
+            // @ts-ignore
+            window.visualViewport?.removeEventListener?.('resize', tick)
+            // @ts-ignore
+            window.visualViewport?.removeEventListener?.('scroll', tick)
+        }
+    }, [stickyH, trackH, topOffset])
 
+    // easing doux identique pour reveal et cover
+    const ease = (t: number) => {
+        const c = Math.min(1, Math.max(0, t))
+        return c * c * (3 - 2 * c) // smoothstep
+    }
+
+    // split 50/50 : [0..0.5) reveal, [0.5..1] cover
     const split = 0.5
-    const reveal = clamp01(p / split)
-    const coverBase = clamp01((p - split) / (1 - split))
+    const inReveal = p < split
+    const revealP = inReveal ? ease(p / split) : 1
+    const coverP = inReveal ? 0 : ease((p - split) / (1 - split))
 
-    const safePad = Math.max(18, Math.round(stickyH * 0.12))
-    const halfSafe = Math.round(safePad * 0.5)
+    // ===== REVEAL (bas → haut) : clip du CONTENEUR (fond + texte) => un SEUL reveal
+    const preClipTop = (1 - revealP) * 100
+    const clipStyle: React.CSSProperties = inReveal
+        ? { clipPath: `inset(${preClipTop}% 0 0 0)` }
+        : { clipPath: 'inset(0 0 0 0)' }
 
-    const topMaskPx = Math.max(0, Math.round((1 - reveal) * stickyH) - halfSafe)
-    const bottomMaskPx = Math.max(0, Math.round(coverBase * stickyH) - halfSafe)
-    const bottomMaskZ = hideTitleWhenCovered ? 3 : 1
+    // ===== COVER (bas → haut) : overlay BLANC UNIQUE — un SEUL recouvrement
+    const coverOverlayStyle: React.CSSProperties = {
+        position: 'absolute',
+        inset: 0,
+        background: C.blanc,
+        transform: `scaleY(${coverP})`,
+        transformOrigin: 'bottom',
+        willChange: 'transform',
+        pointerEvents: 'none',
+    }
 
     const fixedLayer: React.CSSProperties = {
         position: 'fixed',
         top: 0, left: 0, right: 0,
-        width: '100%',                // ← no 100vw (prevents horizontal shift)
         height: stickyH,
+        transform: `translateY(${topOffset}px)`,
+        zIndex: 6,
         overflow: 'hidden',
-        zIndex: 10,
+        willChange: 'transform',
+        background: 'transparent',
         paddingLeft: 'env(safe-area-inset-left)',
         paddingRight: 'env(safe-area-inset-right)',
     }
 
     return (
-        <section
-            ref={sectionRef as any}
-            style={{
-                height: trackH,
-                position: 'relative',
-                background: 'transparent',
-                margin: 0,
-                marginBottom: handoffAdvancePx ? -handoffAdvancePx : 0,
-            }}
-        >
-            {inPin && (
-                <div style={fixedLayer}>
-                    <div style={{ position: 'absolute', inset: 0, background: bandColor, zIndex: 0 }} />
-                    <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: topMaskPx, background: C.blanc, zIndex: 1, willChange: 'height', transition: 'height 0.03s linear' }} />
-                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2, pointerEvents: 'none', color: textColor, paddingTop: halfSafe, paddingBottom: halfSafe, paddingLeft: 24, paddingRight: 24 }}>
-                        <h2 className="m-0" style={{ fontSize: 'var(--accroche-size, clamp(24px,6vw,64px))', lineHeight: 1.2, letterSpacing: '0.015em', textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {title}
-                        </h2>
+        <section ref={sectionRef as any} style={{ height: trackH, position: 'relative' }}>
+            {phase === 'pin' && (
+                <div style={fixedLayer} aria-hidden>
+                    {/* REVEAL : on clippe le CONTENEUR (fond taupe + titre) */}
+                    <div style={{ position: 'absolute', inset: 0, ...clipStyle }}>
+                        <div style={{ position: 'absolute', inset: 0, background: bandColor }} />
+                        <div style={{
+                            position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
+                            pointerEvents: 'none'
+                        }}>
+                            <h2 className="m-0" style={{
+                                color: textColor,
+                                fontSize: 'var(--accroche-size, clamp(24px,6vw,64px))',
+                                lineHeight: 1.2,
+                                letterSpacing: '0.015em',
+                                whiteSpace: 'nowrap',
+                                textAlign: 'center',
+                                padding: '0 24px',
+                                textShadow: 'none',        // pas d’effet lumière
+                                opacity: 1,                // pas de fade
+                            }}>
+                                {title}
+                            </h2>
+                        </div>
                     </div>
-                    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: bottomMaskPx, background: C.blanc, zIndex: bottomMaskZ, willChange: 'height', transition: 'height 0.03s linear' }} />
+
+                    {/* COVER : un seul overlay blanc qui monte (même vitesse que reveal) */}
+                    {!inReveal && <div style={coverOverlayStyle} />}
                 </div>
             )}
-            {/* reserve the space the fixed layer occupies */}
-            <div style={{ height: stickyH }} />
         </section>
     )
 }
-
 
 /* ===========================
    StepsStickyReveal
    =========================== */
 function StepsStickyReveal({
-    trackVH = 240,
+    trackVH = 160,
     stickyVH = 80,
-    thresholds = [0.08, 0.30, 0.55, 0.80],
-    fadeWindow = 0.20,
-    diagStepPx = 48,
+    thresholds = [0.00, 0.22, 0.48, 0.74],
+    fadeWindow = 0.18,
 }: {
     trackVH?: number
     stickyVH?: number
     thresholds?: number[]
     fadeWindow?: number
-    diagStepPx?: number
 }) {
     const vh = useVH()
     const trackH = Math.round((vh * trackVH) / 100)
     const stickyH = Math.round((vh * stickyVH) / 100)
+
+    const [topOffset, setTopOffset] = useState(getTopOffset())
+    const [armed, setArmed] = useState(false)
+
+    useEffect(() => {
+        const onDone = (e: any) => {
+            setArmed(true)
+            if (e?.detail?.topOffset != null) setTopOffset(e.detail.topOffset)
+        }
+        const onVV = () => setTopOffset(getTopOffset())
+        window.addEventListener('amd_band_done', onDone as any)
+        // @ts-ignore
+        window.visualViewport?.addEventListener?.('resize', onVV)
+        // @ts-ignore
+        window.visualViewport?.addEventListener?.('scroll', onVV)
+        return () => {
+            window.removeEventListener('amd_band_done', onDone as any)
+            // @ts-ignore
+            window.visualViewport?.removeEventListener?.('resize', onVV)
+            // @ts-ignore
+            window.visualViewport?.removeEventListener?.('scroll', onVV)
+        }
+    }, [])
 
     const trackRef = useRef<HTMLDivElement | null>(null)
     const [p, setP] = useState(0)
@@ -332,35 +427,60 @@ function StepsStickyReveal({
     useEffect(() => {
         let raf = 0
         const onScroll = () => {
-            const el = trackRef.current
-            if (!el) return
+            const el = trackRef.current; if (!el) return
             const rect = el.getBoundingClientRect()
+            const to = topOffset
+
             const total = Math.max(1, rect.height - stickyH)
-            const advanced = Math.min(total, Math.max(0, -rect.top))
+            const advanced = Math.min(total, Math.max(0, to - rect.top))
             setP(advanced / total)
 
-            if (rect.top > 0) setPhase('before')
-            else if (rect.bottom >= stickyH) setPhase('pin')
+            if (rect.top - to > 0) setPhase('before')
+            else if (rect.bottom >= stickyH + to) setPhase('pin')
             else setPhase('after')
         }
         const tick = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(onScroll) }
         tick()
         window.addEventListener('scroll', tick, { passive: true })
         window.addEventListener('resize', tick)
-        return () => { cancelAnimationFrame(raf); window.removeEventListener('scroll', tick); window.removeEventListener('resize', tick) }
-    }, [stickyH])
+        // @ts-ignore
+        window.visualViewport?.addEventListener?.('resize', tick)
+        // @ts-ignore
+        window.visualViewport?.addEventListener?.('scroll', tick)
+        return () => {
+            cancelAnimationFrame(raf)
+            window.removeEventListener('scroll', tick)
+            window.removeEventListener('resize', tick)
+            // @ts-ignore
+            window.visualViewport?.removeEventListener?.('resize', tick)
+            // @ts-ignore
+            window.visualViewport?.removeEventListener?.('scroll', tick)
+        }
+    }, [stickyH, topOffset, trackH])
 
     const easeOut = (t: number) => t * (2 - t)
+    const effectiveP = armed ? p : 0
 
+    // ✅ AUCUN fond blanc pendant le pin (tout est transparent)
     const layerPos: React.CSSProperties =
         phase === 'before'
             ? { position: 'absolute', top: 0, left: 0, right: 0, height: stickyH }
             : phase === 'pin'
-                ? { position: 'fixed', top: 0, left: 0, right: 0, height: stickyH, zIndex: 5 } // ← no 100vw
+                ? { position: 'fixed', top: 0, left: 0, right: 0, height: stickyH, zIndex: 10, transform: `translateY(${topOffset}px)`, willChange: 'transform', pointerEvents: 'none', background: 'transparent' } // <-- transparent
                 : { position: 'absolute', left: 0, right: 0, bottom: 0, height: stickyH }
 
     const renderSteps = () => (
-        <div style={{ maxWidth: 1160, height: '100%', margin: '0 auto', display: 'flex', justifyContent: 'center', alignItems: 'center', paddingLeft: 24, paddingRight: 24, background: C.blanc }}>
+        <div style={{
+            maxWidth: 1160,
+            height: '100%',
+            margin: '0 auto',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingLeft: 24,
+            paddingRight: 24,
+            background: 'transparent', // <-- transparent (au lieu de C.blanc)
+        }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 72, textAlign: 'center', flexWrap: 'nowrap', width: '100%' }}>
                 {[
                     { n: '01', t: 'Écoute', d: 'On clarifie vos envies, votre rythme et vos contraintes.' },
@@ -368,9 +488,9 @@ function StepsStickyReveal({
                     { n: '03', t: 'Organisation', d: 'Transferts, réservations, adresses rares préparées pour vous.' },
                     { n: '04', t: 'Accompagnement', d: 'Avant, pendant, après — vous profitez, on s’occupe du reste.' },
                 ].map((step, i) => {
-                    const a = Math.max(0, Math.min(1, (p - thresholds[i]) / fadeWindow))
+                    const a = Math.max(0, Math.min(1, (effectiveP - thresholds[i]) / fadeWindow))
                     const appear = phase === 'after' ? 1 : easeOut(a)
-                    const y = i * diagStepPx + (1 - appear) * 16
+                    const y = i * 48 + (1 - appear) * 16
                     const hidden = appear <= 0.001 && phase !== 'after'
                     return (
                         <div key={step.n} style={{ minWidth: 220, transform: `translateY(${y}px)`, opacity: appear, transition: phase === 'after' ? 'none' : 'opacity .28s ease, transform .28s ease', visibility: hidden ? 'hidden' : 'visible' }}>
@@ -388,10 +508,17 @@ function StepsStickyReveal({
     )
 
     return (
-        <div ref={trackRef} style={{ height: trackH, position: 'relative', overflow: 'visible', zIndex: 3, background: C.blanc }}>
-            <div style={{ height: stickyH }} />
+        <div
+            ref={trackRef}
+            style={{
+                height: trackH,
+                position: 'relative',
+                overflow: 'visible',
+                zIndex: 8,
+                background: 'transparent', // <-- transparent (le track lui-même)
+            }}
+        >
             <div style={layerPos}>{renderSteps()}</div>
-            <div style={{ height: 32 }} />  {/* ← was 120 */}
         </div>
     )
 }
@@ -514,7 +641,12 @@ export default function Accueil() {
     const fadeOutA = 1 - clamp01((handoffP - 0.85) / 0.15)
     const handoffDone = handoffP >= 0.999
     const PAGE_PAD = REVEAL_SPAN + HANDOFF_SPAN
-
+    const [hideHeroCover, setHideHeroCover] = useState(false)
+    useEffect(() => {
+        const onPin = () => setHideHeroCover(true)
+        window.addEventListener('amd_band_done', onPin as any)
+        return () => window.removeEventListener('amd_band_done', onPin as any)
+    }, [])
     const EXTRA_GAP_PX = Math.round((vh * 12) / 100)
 
     return (
@@ -554,7 +686,8 @@ export default function Accueil() {
                     <div
                         style={{
                             position: 'absolute', left: 0, right: 0, bottom: 0,
-                            height: cover * heroH, background: C.blanc
+                            height: cover * heroH,
+                            background: C.blanc
                         }}
                     />
                 </div>
@@ -700,29 +833,22 @@ export default function Accueil() {
                 </section>
 
                 {/* Espace avant le sticky band */}
-                <div style={{ height: Math.round(vh * 0.1) }} />
+                <div style={{ height: Math.round(vh * 0.0) }} />
 
-                {/* ======= BANDEAU INVERSÉ ======= */}
-                <div style={{ height: Math.round(vh * 0.02) }} />  {/* was 0.10 */}
-
-                <StickyBandInverse
+                <StickyBandSequence
                     title="Une approche unique pour vos voyages"
                     bandColor={C.taupe}
                     textColor={C.blanc}
-                    heightVH={100}
-                    durationVH={250}
-                    hideTitleWhenCovered={true}
-                    handoffAdvancePx={Math.round(vh * 0.10)} // pull next section up ≈ 10vh
+                    stickyVH={100}
+                    durationVH={140}   // ← ajuste cette seule valeur pour la vitesse (réveal = cover)
                 />
 
                 <StepsStickyReveal
-                    trackVH={240}
+                    trackVH={160}
                     stickyVH={80}
-                    thresholds={[0.08, 0.30, 0.55, 0.80]}
-                    fadeWindow={0.20}
-                    diagStepPx={48}
+                    thresholds={[0.00, 0.22, 0.48, 0.74]}
+                    fadeWindow={0.18}
                 />
-
 
                 {/* ======= UNE PROMESSE ======= */}
                 <section
@@ -876,7 +1002,6 @@ export default function Accueil() {
                     </div>
                 </section>
             </div>
-
             {/* air en bas */}
             <div style={{ height: Math.round(vh * 0.1) }} />
         </div>
