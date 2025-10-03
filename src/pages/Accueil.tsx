@@ -552,7 +552,7 @@ export default function Accueil() {
                 style={{
                   width: 'clamp(280px, 32vw, 420px)',
                   height: 520,
-                  backgroundImage: `url('/1.jpg')`,
+                  backgroundImage: `url(${asset('1.jpg')})`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   borderRadius: 0,
@@ -575,7 +575,7 @@ export default function Accueil() {
                 maxWidth: 680,
                 width: '100%',
                 height: 300,
-                backgroundImage: `url('/2.jpg')`,
+                backgroundImage: `url(${asset('2.jpg')})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 borderRadius: 0,
@@ -676,7 +676,7 @@ export default function Accueil() {
             width: '100vw',
             boxShadow: '0 0 0 1px transparent',
             // Image 3
-            backgroundImage: `url('/3.jpg')`,
+            backgroundImage: `url(${asset('3.jpg')})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             // si tu veux un léger effet parallax natif : dé-commente
