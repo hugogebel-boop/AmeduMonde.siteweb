@@ -416,86 +416,61 @@ function StickyBandSequence({
    StepsStickyReveal — même rendu, calculs sans reflow en scroll
    ────────────────────────────────────────────────────────────── */
 function StepsStickyReveal({
-    trackVH = 160,
+    trackVH = 175,                  // un peu plus long pour finir avant la section suivante
     stickyVH = 80,
-    thresholds = [0.00, 0.22, 0.48, 0.74],
-    fadeWindow = 0.18,
+    thresholds = [0.00, 0.18, 0.38, 0.60], // apparition plus tôt
+    fadeWindow = 0.22,                     // fenêtre un poil plus large = +doux
+    handoffGuardPx = 8,                    // garde pour éviter le hop
 }: {
     trackVH?: number
     stickyVH?: number
     thresholds?: number[]
     fadeWindow?: number
+    handoffGuardPx?: number
 }) {
     const vh = useVH()
-    const trackH = Math.round((vh * trackVH) / 100)
-    const stickyH = Math.round((vh * stickyVH) / 100)
+    const trackH = Math.max(1, Math.round((vh * trackVH) / 100))
+    const stickyH = Math.max(1, Math.round((vh * stickyVH) / 100))
 
-    const [topOffset, setTopOffset] = useState(getTopOffset())
-    const [armed, setArmed] = useState(false)
+    // Offsets stables (debounce + hysteresis → pas de micromouvements iOS)
+    const topOffset = useStableTopOffset()
 
-    // handoff quand le bandeau est terminé
-    useEffect(() => {
-        const onDone = (e: any) => {
-            setArmed(true)
-            if (e?.detail?.topOffset != null) setTopOffset(e.detail.topOffset)
-        }
-        const onVV = () => setTopOffset(getTopOffset())
+    // Handoff quand le bandeau est terminé (on “arme” l’apparition)
+    const [armed, setArmed] = React.useState(false)
+    React.useEffect(() => {
+        const onDone = () => setArmed(true)
         window.addEventListener('amd_band_done', onDone as any)
-        // @ts-ignore
-        window.visualViewport?.addEventListener?.('resize', onVV)
-        return () => {
-            window.removeEventListener('amd_band_done', onDone as any)
-            // @ts-ignore
-            window.visualViewport?.removeEventListener?.('resize', onVV)
-        }
+        return () => window.removeEventListener('amd_band_done', onDone as any)
     }, [])
 
-    const trackRef = useRef<HTMLDivElement | null>(null)
-    const [p, setP] = useState(0)
-    const [phase, setPhase] = useState<'before' | 'pin' | 'after'>('before')
+    // Mesures absolues (hors scroll)
+    const trackRef = React.useRef<HTMLDivElement | null>(null)
+    const { top: absTop, height: absHeight } = useAbsMetrics(trackRef)
 
-    // Écouteurs stables (pas de dépendance sur p/phase)
-    useEffect(() => {
-        let raf = 0
-        const EPS = 0.0008
+    // Scroll global rAF (unique)
+    const y = useRafScroll()
 
-        const onScrollCompute = () => {
-            const el = trackRef.current; if (!el) return
-            const rect = el.getBoundingClientRect()
-            const to = topOffset
-            const total = Math.max(1, rect.height - stickyH)
-            const advanced = Math.min(total, Math.max(0, to - rect.top))
-            const np = advanced / total
+    // Projection sans reflow
+    const rectTop = absTop - y
+    const rectBottom = rectTop + absHeight
 
-            setP(prev => (Math.abs(prev - np) > EPS ? np : prev))
+    const total = Math.max(1, absHeight - stickyH)
+    const advanced = Math.min(total, Math.max(0, topOffset - rectTop))
+    const p = advanced / total
 
-            const nextPhase =
-                (rect.top - to > 0) ? 'before' :
-                    (rect.bottom >= stickyH + to) ? 'pin' : 'after'
-
-            setPhase(prev => (prev === nextPhase ? prev : nextPhase))
-        }
-
-        const tick = () => { if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(onScrollCompute) }
-
-        tick()
-        window.addEventListener('scroll', tick, { passive: true })
-        window.addEventListener('resize', tick)
-        // @ts-ignore
-        window.visualViewport?.addEventListener?.('resize', tick)
-
-        return () => {
-            if (raf) cancelAnimationFrame(raf)
-            window.removeEventListener('scroll', tick)
-            window.removeEventListener('resize', tick)
-            // @ts-ignore
-            window.visualViewport?.removeEventListener?.('resize', tick)
-        }
-    }, [stickyH, topOffset, trackH])
+    // Phase avec garde → on “tient” le pin un chouïa plus longtemps
+    const phase: 'before' | 'pin' | 'after' =
+        (rectTop - topOffset > 0) ? 'before'
+            : (rectBottom >= stickyH + topOffset + handoffGuardPx) ? 'pin'
+                : 'after'
 
     const effectiveP = armed ? p : 0
+    const ease = (t: number) => { const c = Math.min(1, Math.max(0, t)); return c * c * (3 - 2 * c) }
 
-    // Couche : fixe pendant PIN, sinon absolue
+    // Positionnement de la couche :
+    // - before: absolu en haut
+    // - pin: fixed aligné au topOffset
+    // - after: absolu, “posé” EXACTEMENT à la fin du pin → plus de saut
     const layerPos: React.CSSProperties =
         phase === 'before'
             ? { position: 'absolute', top: 0, left: 0, right: 0, height: stickyH }
@@ -508,7 +483,10 @@ function StepsStickyReveal({
                     pointerEvents: 'none',
                     background: 'transparent',
                 }
-                : { position: 'absolute', left: 0, right: 0, bottom: 0, height: stickyH }
+                : {
+                    // ❗ on “dépose” au même endroit géométrique que la fin du pin
+                    position: 'absolute', top: (trackH - stickyH), left: 0, right: 0, height: stickyH
+                }
 
     const steps = [
         { n: '01', t: 'Écoute', d: 'On clarifie vos envies, votre rythme et vos contraintes.' },
@@ -517,11 +495,9 @@ function StepsStickyReveal({
         { n: '04', t: 'Accompagnement', d: 'Avant, pendant, après — vous profitez, on s’occupe du reste.' },
     ]
 
-    // Diagonale douce : chaque carte démarre légèrement décalée en X et Y puis rejoint sa place
-    // - dx: léger slide latéral dépendant de l'index (centre -> 0, bords -> +/-)
-    // - dy: montée douce
-    const baseShiftY = 22   // px de décalage vertical au début
-    const baseShiftX = 18   // px max de décalage horizontal au début (par carte autour du centre)
+    // Diagonale douce
+    const baseShiftY = 22
+    const baseShiftX = 18
 
     return (
         <div
@@ -529,6 +505,10 @@ function StepsStickyReveal({
             style={{ height: trackH, position: 'relative', overflow: 'visible', zIndex: 8, background: 'transparent' }}
         >
             <div style={layerPos} className={phase === 'pin' ? 'fixed-smooth' : undefined}>
+                {/* Optionnel : rideau blanc discret pour éviter de voir la section suivante pendant le pin
+        {phase === 'pin' && (
+          <div style={{position:'absolute', inset:0, background:'#F9F8F6', opacity: 1, pointerEvents:'none'}} />
+        )} */}
                 <div style={{
                     maxWidth: 1160, height: '100%', margin: '0 auto',
                     display: 'flex', justifyContent: 'center', alignItems: 'center',
@@ -539,13 +519,12 @@ function StepsStickyReveal({
                         gap: 72, textAlign: 'center', flexWrap: 'nowrap', width: '100%',
                     }}>
                         {steps.map((step, i) => {
-                            const a = Math.max(0, Math.min(1, (effectiveP - thresholds[i]) / fadeWindow))
-                            const appear = phase === 'after' ? 1 : a
+                            const aRaw = Math.max(0, Math.min(1, (effectiveP - thresholds[i]) / fadeWindow))
+                            const appear = phase === 'after' ? 1 : ease(aRaw)
 
-                            // facteur centré autour de 0 pour X (avec 4 items → indices 0..3 -> -1.5..+1.5)
                             const centerFactor = i - (steps.length - 1) / 2
-                            const dx = (1 - appear) * baseShiftX * centerFactor   // gauche négatif, droite positif
-                            const dy = (1 - appear) * baseShiftY + i * 32         // légère marche verticale (diagonale “montante”)
+                            const dx = (1 - appear) * baseShiftX * centerFactor
+                            const dy = (1 - appear) * baseShiftY + i * 32
 
                             const hidden = appear <= 0.001 && phase !== 'after'
                             return (
