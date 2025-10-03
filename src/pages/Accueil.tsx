@@ -281,7 +281,7 @@ function getTopOffset(extra = 0): number {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   StickyBandSequence
+   StickyBandSequence — version optimisée mobile
    ────────────────────────────────────────────────────────────── */
 function StickyBandSequence({
     title = 'Une approche unique pour vos voyages',
@@ -310,23 +310,32 @@ function StickyBandSequence({
     const advancePx = Math.round((vh * triggerAdvanceVH) / 100)
     const sentDone = useRef(false)
 
+    // Écouteurs stables (pas de rebind à chaque frame)
     useEffect(() => {
         let raf = 0
-        const onScroll = () => {
+        const EPS = 0.0008
+
+        const onScrollCompute = () => {
             const el = sectionRef.current; if (!el) return
             const rect = el.getBoundingClientRect()
             const toReal = getTopOffset()
             const toTrig = toReal - advancePx
+
             if (toReal !== topOffsetReal) setTopOffsetReal(toReal)
 
             const total = Math.max(1, rect.height - stickyH)
             const advanced = Math.min(total, Math.max(0, toTrig - rect.top))
             const np = advanced / total
-            setP(np)
 
-            if (rect.top - toTrig > 0) setPhase('before')
-            else if (rect.bottom >= stickyH + toTrig) setPhase('pin')
-            else setPhase('after')
+            setP(prev => (Math.abs(prev - np) > EPS ? np : prev))
+
+            if (rect.top - toTrig > 0) {
+                setPhase(prev => (prev !== 'before' ? 'before' : prev))
+            } else if (rect.bottom >= stickyH + toTrig) {
+                setPhase(prev => (prev !== 'pin' ? 'pin' : prev))
+            } else {
+                setPhase(prev => (prev !== 'after' ? 'after' : prev))
+            }
 
             if (np >= 0.999 && !sentDone.current) {
                 sentDone.current = true
@@ -334,32 +343,37 @@ function StickyBandSequence({
             }
             if (np < 0.5 && sentDone.current) sentDone.current = false
         }
-        const tick = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(onScroll) }
+
+        const tick = () => { if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(onScrollCompute) }
+
+        // première mesure
         tick()
         window.addEventListener('scroll', tick, { passive: true })
         window.addEventListener('resize', tick)
+        // garder visualViewport *resize* (barres iOS), supprimer visualViewport *scroll*
         // @ts-ignore
         window.visualViewport?.addEventListener?.('resize', tick)
-        // @ts-ignore
-        window.visualViewport?.addEventListener?.('scroll', tick)
+
         return () => {
-            cancelAnimationFrame(raf)
+            if (raf) cancelAnimationFrame(raf)
             window.removeEventListener('scroll', tick)
             window.removeEventListener('resize', tick)
             // @ts-ignore
             window.visualViewport?.removeEventListener?.('resize', tick)
-            // @ts-ignore
-            window.visualViewport?.removeEventListener?.('scroll', tick)
         }
-    }, [stickyH, trackH, topOffsetReal, advancePx])
+        // ne rebinder qu'en cas de changement des constantes réelles
+    }, [stickyH, advancePx, topOffsetReal])
 
+    // Progression (révélation puis recouvrement)
     const ease = (t: number) => { const c = Math.min(1, Math.max(0, t)); return c * c * (3 - 2 * c) }
     const split = 0.5
     const inReveal = p < split
     const revealP = inReveal ? ease(p / split) : 1
     const coverP = inReveal ? 0 : ease((p - split) / (1 - split))
     const preClipTop = (1 - revealP) * 100
-    const clipStyle: React.CSSProperties = inReveal ? { clipPath: `inset(${preClipTop}% 0 0 0)` } : { clipPath: 'inset(0 0 0 0)' }
+    const clipStyle: React.CSSProperties = inReveal
+        ? { clipPath: `inset(${preClipTop}% 0 0 0)` }
+        : { clipPath: 'inset(0 0 0 0)' }
 
     const coverOverlayStyle: React.CSSProperties = {
         position: 'absolute', inset: 0, background: C.blanc,
@@ -368,29 +382,33 @@ function StickyBandSequence({
 
     const fixedLayer: React.CSSProperties = {
         position: 'fixed', top: 0, left: 0, right: 0, height: stickyH,
-        transform: `translateY(${topOffsetReal}px)`,
-        zIndex: 6, overflow: 'hidden', willChange: 'transform', background: 'transparent',
+        transform: `translate3d(0, ${topOffsetReal}px, 0)`,
+        zIndex: 6, overflow: 'hidden', background: 'transparent',
+        willChange: 'transform',
         paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)',
     }
 
     return (
         <section ref={sectionRef as any} style={{ height: trackH, position: 'relative' }}>
             {phase === 'pin' && (
-                <div style={fixedLayer} aria-hidden>
+                <div style={fixedLayer} className="fixed-smooth" aria-hidden>
                     <div style={{ position: 'absolute', inset: 0, ...clipStyle }}>
                         <div style={{ position: 'absolute', inset: 0, background: bandColor }} />
                         <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', pointerEvents: 'none' }}>
-                            <h2 className="m-0" style={{
-                                color: textColor,
-                                fontSize: 'var(--accroche-size, clamp(24px,6vw,64px))',
-                                lineHeight: 1.2,
-                                letterSpacing: '0.015em',
-                                whiteSpace: 'nowrap',
-                                textAlign: 'center',
-                                padding: '0 24px',
-                                textShadow: 'none',
-                                opacity: 1,
-                            }}>
+                            <h2
+                                className="m-0"
+                                style={{
+                                    color: textColor,
+                                    fontSize: 'var(--accroche-size, clamp(24px,6vw,64px))',
+                                    lineHeight: 1.2,
+                                    letterSpacing: '0.015em',
+                                    whiteSpace: 'nowrap',
+                                    textAlign: 'center',
+                                    padding: '0 24px',
+                                    textShadow: 'none',
+                                    opacity: 1,
+                                }}
+                            >
                                 {title}
                             </h2>
                         </div>
@@ -404,6 +422,9 @@ function StickyBandSequence({
 
 /* ──────────────────────────────────────────────────────────────
    StepsStickyReveal (responsive)
+   ────────────────────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────────────
+   StepsStickyReveal — version optimisée mobile
    ────────────────────────────────────────────────────────────── */
 function StepsStickyReveal({
     trackVH = 160,
@@ -423,6 +444,7 @@ function StepsStickyReveal({
     const [topOffset, setTopOffset] = useState(getTopOffset())
     const [armed, setArmed] = useState(false)
 
+    // handoff quand le bandeau est terminé
     useEffect(() => {
         const onDone = (e: any) => {
             setArmed(true)
@@ -432,14 +454,11 @@ function StepsStickyReveal({
         window.addEventListener('amd_band_done', onDone as any)
         // @ts-ignore
         window.visualViewport?.addEventListener?.('resize', onVV)
-        // @ts-ignore
-        window.visualViewport?.addEventListener?.('scroll', onVV)
+        // (pas de visualViewport.scroll, trop bruyant)
         return () => {
             window.removeEventListener('amd_band_done', onDone as any)
             // @ts-ignore
             window.visualViewport?.removeEventListener?.('resize', onVV)
-            // @ts-ignore
-            window.visualViewport?.removeEventListener?.('scroll', onVV)
         }
     }, [])
 
@@ -447,46 +466,57 @@ function StepsStickyReveal({
     const [p, setP] = useState(0)
     const [phase, setPhase] = useState<'before' | 'pin' | 'after'>('before')
 
+    // Écouteurs stables (pas de dépendance sur p/phase)
     useEffect(() => {
         let raf = 0
-        const onScroll = () => {
+        const EPS = 0.0008
+
+        const onScrollCompute = () => {
             const el = trackRef.current; if (!el) return
             const rect = el.getBoundingClientRect()
             const to = topOffset
             const total = Math.max(1, rect.height - stickyH)
             const advanced = Math.min(total, Math.max(0, to - rect.top))
             const np = advanced / total
-            if (np !== p) setP(np)
 
-            if (rect.top - to > 0) { if (phase !== 'before') setPhase('before') }
-            else if (rect.bottom >= stickyH + to) { if (phase !== 'pin') setPhase('pin') }
-            else { if (phase !== 'after') setPhase('after') }
+            setP(prev => (Math.abs(prev - np) > EPS ? np : prev))
+
+            const nextPhase =
+                (rect.top - to > 0) ? 'before' :
+                    (rect.bottom >= stickyH + to) ? 'pin' : 'after'
+
+            setPhase(prev => (prev === nextPhase ? prev : nextPhase))
         }
-        const tick = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(onScroll) }
+
+        const tick = () => { if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(onScrollCompute) }
+
         tick()
         window.addEventListener('scroll', tick, { passive: true })
         window.addEventListener('resize', tick)
+        // garder VV *resize*, supprimer VV *scroll*
         // @ts-ignore
         window.visualViewport?.addEventListener?.('resize', tick)
-        // @ts-ignore
-        window.visualViewport?.addEventListener?.('scroll', tick)
+
         return () => {
-            cancelAnimationFrame(raf)
+            if (raf) cancelAnimationFrame(raf)
             window.removeEventListener('scroll', tick)
             window.removeEventListener('resize', tick)
             // @ts-ignore
             window.visualViewport?.removeEventListener?.('resize', tick)
-            // @ts-ignore
-            window.visualViewport?.removeEventListener?.('scroll', tick)
         }
-    }, [stickyH, topOffset, trackH, p, phase])
+    }, [stickyH, topOffset, trackH])
 
     const effectiveP = armed ? p : 0
+
     const layerPos: React.CSSProperties =
         phase === 'before'
             ? { position: 'absolute', top: 0, left: 0, right: 0, height: stickyH }
             : phase === 'pin'
-                ? { position: 'fixed', top: 0, left: 0, right: 0, height: stickyH, zIndex: 10, transform: `translateY(${topOffset}px)`, willChange: 'transform', pointerEvents: 'none', background: 'transparent' }
+                ? {
+                    position: 'fixed', top: 0, left: 0, right: 0, height: stickyH,
+                    zIndex: 10, transform: `translate3d(0, ${topOffset}px, 0)`,
+                    willChange: 'transform', pointerEvents: 'none', background: 'transparent',
+                }
                 : { position: 'absolute', left: 0, right: 0, bottom: 0, height: stickyH }
 
     const steps = [
@@ -497,8 +527,11 @@ function StepsStickyReveal({
     ]
 
     return (
-        <div ref={trackRef} style={{ height: trackH, position: 'relative', overflow: 'visible', zIndex: 8, background: 'transparent' }}>
-            <div style={layerPos}>
+        <div
+            ref={trackRef}
+            style={{ height: trackH, position: 'relative', overflow: 'visible', zIndex: 8, background: 'transparent' }}
+        >
+            <div style={layerPos} className={phase === 'pin' ? 'fixed-smooth' : undefined}>
                 <div style={{
                     maxWidth: 1160, height: '100%', margin: '0 auto',
                     display: 'flex', justifyContent: 'center', alignItems: 'center',
@@ -510,7 +543,6 @@ function StepsStickyReveal({
                     }}>
                         {steps.map((step, i) => {
                             const a = Math.max(0, Math.min(1, (effectiveP - thresholds[i]) / fadeWindow))
-                            // pas de transition CSS : on calcule directement la position / opacité
                             const appear = phase === 'after' ? 1 : a
                             const y = i * 48 + (1 - appear) * 16
                             const hidden = appear <= 0.001 && phase !== 'after'
@@ -543,28 +575,58 @@ function StepsStickyReveal({
 }
 
 /* ──────────────────────────────────────────────────────────────
-   StepsStickyVertical (responsive)
+   StepsVertical — version optimisée mobile (zéro setState)
    ────────────────────────────────────────────────────────────── */
 function StepsVertical() {
     const ref = React.useRef<HTMLDivElement | null>(null)
-    const [visible, setVisible] = useState<boolean[]>(new Array(4).fill(false))
 
-    useEffect(() => {
-        const el = ref.current
-        if (!el) return
-        const items = Array.from(el.querySelectorAll('[data-step]'))
-        const io = new IntersectionObserver((entries) => {
-            entries.forEach(e => {
-                const i = Number((e.target as HTMLElement).dataset.stepIndex || -1)
-                if (i >= 0 && e.isIntersecting) {
-                    setVisible(prev => {
-                        if (prev[i]) return prev
-                        const cp = prev.slice(); cp[i] = true; return cp
-                    })
+    // CSS local au composant (léger + GPU-friendly)
+    const Styles = (
+        <style>{`
+      .sv-wrap { padding: 36px 16px 12px; background: transparent; }
+      .sv-container { max-width: 720px; margin: 0 auto; }
+      .sv-item {
+        opacity: 0;
+        transform: translate3d(0, 12px, 0);
+        transition: opacity .28s ease, transform .28s ease;
+        will-change: transform, opacity;
+        background: transparent;
+        padding: 14px 4px;
+      }
+      .sv-item.on {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+      }
+      .sv-sep { height: 1px; background: rgba(90,51,23,.12); }
+      @media (prefers-reduced-motion: reduce) {
+        .sv-item, .sv-item.on { transition: none !important; transform: none !important; opacity: 1 !important; }
+      }
+    `}</style>
+    )
+
+    React.useEffect(() => {
+        const root = ref.current
+        if (!root) return
+        const items = Array.from(root.querySelectorAll<HTMLElement>('[data-step]'))
+
+        // IO ultra simple : on ajoute .on une fois, puis on unobserve
+        const io = new IntersectionObserver(
+            (entries) => {
+                for (const e of entries) {
+                    if (!e.isIntersecting) continue
+                    const el = e.target as HTMLElement
+                    el.classList.add('on')
+                    io.unobserve(el)         // évite tout travail supplémentaire
                 }
-            })
-        }, { rootMargin: '0px 0px -15% 0px', threshold: 0.2 })
-        items.forEach(it => io.observe(it))
+            },
+            {
+                // Révèle quand ~20% visible, déclenche un peu avant (rootMargin bas)
+                threshold: 0.2,
+                rootMargin: '0px 0px -15% 0px',
+            }
+        )
+
+        items.forEach((it) => io.observe(it))
         return () => io.disconnect()
     }, [])
 
@@ -576,35 +638,32 @@ function StepsVertical() {
     ]
 
     return (
-        <section ref={ref} style={{ padding: '36px 16px 12px' }}>
-            <div style={{ maxWidth: 720, margin: '0 auto' }}>
-                {steps.map((s, i) => {
-                    const on = visible[i]
-                    return (
-                        <div
-                            key={s.n}
-                            data-step
-                            data-step-index={i}
+        <section ref={ref} className="sv-wrap">
+            {Styles}
+            <div className="sv-container">
+                {steps.map((s) => (
+                    <div key={s.n} data-step className="sv-item">
+                        <h3
+                            className="m-0"
                             style={{
-                                opacity: on ? 1 : 0,
-                                transform: `translateY(${on ? 0 : 12}px)`,
-                                transition: 'opacity .28s ease, transform .28s ease',
-                                willChange: 'transform, opacity',
-                                background: 'transparent',
-                                padding: '14px 4px',
+                                fontSize: 18,
+                                fontWeight: 700,
+                                letterSpacing: '.08em',
+                                textTransform: 'uppercase',
+                                color: C.cuivre,
+                                marginBottom: 6,
+                                whiteSpace: 'nowrap',
                             }}
                         >
-                            <h3 className="m-0" style={{ fontSize: 18, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: C.cuivre, marginBottom: 6 }}>
-                                {s.n}. {s.t}
-                            </h3>
-                            <p className="m-0 font-sans" style={{ fontSize: 16, lineHeight: 1.65, color: 'rgba(90,51,23,.95)' }}>
-                                {s.d}
-                            </p>
-                            <div style={{ height: 10 }} />
-                            <div style={{ height: 1, background: 'rgba(90,51,23,.12)' }} />
-                        </div>
-                    )
-                })}
+                            {s.n}. {s.t}
+                        </h3>
+                        <p className="m-0 font-sans" style={{ fontSize: 16, lineHeight: 1.65, color: 'rgba(90,51,23,.95)' }}>
+                            {s.d}
+                        </p>
+                        <div style={{ height: 10 }} />
+                        <div className="sv-sep" />
+                    </div>
+                ))}
             </div>
         </section>
     )
@@ -802,7 +861,7 @@ export default function Accueil() {
                 )}
 
                 {/* ======= UNE PROMESSE ======= */}
-                <section style={{ background: C.blanc, paddingTop: 80, paddingBottom: 80 }}>
+                <section style={{ background: C.blanc, paddingTop: 180, paddingBottom: 120 }}>
                     <SafeAreaPad>
                         <div style={{ maxWidth: 860, margin: '0 auto', display: 'grid', placeItems: 'center', textAlign: 'center', padding: '0 16px' }}>
                             <h2 className="mb-6" style={{ fontSize: 32, fontWeight: 600, color: C.cuivre, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
@@ -839,7 +898,7 @@ export default function Accueil() {
                 />
 
                 {/* ======= CONTACT ======= */}
-                <section style={{ background: C.blanc, paddingTop: 72, paddingBottom: 96 }}>
+                <section style={{ background: C.blanc, paddingTop: 272, paddingBottom: 126 }}>
                     <SafeAreaPad>
                         <div style={{ maxWidth: 920, margin: '0 auto', display: 'grid', placeItems: 'center', textAlign: 'center', padding: '0 16px' }}>
                             <h2 className="m-0" style={{ fontSize: 'clamp(28px,3vw,36px)', color: C.cuivre, fontWeight: 600, letterSpacing: '0.02em' }}>
