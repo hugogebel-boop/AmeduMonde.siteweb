@@ -59,9 +59,16 @@ function MobileGlobalCSS() {
   }
   @media (max-width: 480px) { .step-card { min-width: 100%; } }
 
-  /* mobile/touch smoothness — évite les rebonds et le "ping" */
-  html, body { scroll-behavior: auto; overscroll-behavior-y: contain; }
-  body { -webkit-overflow-scrolling: touch; }
+  /* mobile/touch smoothness */
+  html, body {
+    scroll-behavior: auto;
+    overscroll-behavior-y: contain;    /* évite le “ping” d’overscroll */
+    touch-action: pan-y;               /* dit au moteur: geste vertical natif */
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    -webkit-overflow-scrolling: touch; /* inertie iOS native */
+  }
   * { -webkit-tap-highlight-color: transparent; }
 
   /* isolation de paint pour les grands calques */
@@ -70,14 +77,8 @@ function MobileGlobalCSS() {
   /* lazy paint pour sections lourdes */
   .cv-auto { content-visibility: auto; contain-intrinsic-size: 800px 600px; }
 
-  /* boutons sur mobile */
-  @media (hover: none) {
-    .btn-tap { transition: opacity .15s ease; }
-    .btn-tap:active { opacity: .85; transform: none !important; }
-  }
-
   /* évite les transitions fantômes lors de l’inversion du scroll */
-  .fixed-smooth { will-change: transform; }
+  .fixed-smooth { will-change: transform; backface-visibility: hidden; transform: translateZ(0); }
 `}</style>
     )
 }
@@ -248,6 +249,36 @@ function getTopOffset(extra = 0): number {
     const mt = cs ? parseFloat(cs.marginTop || '0') || 0 : 0
     const mb = cs ? parseFloat(cs.marginBottom || '0') || 0 : 0
     return Math.round(vvTop + navH + mt + mb + extra)
+}
+
+function useStableTopOffset(extra = 0, debounceMs = 120, pixelHysteresis = 4) {
+    const [topOffset, setTopOffset] = useState(getTopOffset(extra))
+    const last = useRef(topOffset)
+    useEffect(() => {
+        let to: number | null = null
+        const apply = () => {
+            to = null
+            const next = getTopOffset(extra)
+            if (Math.abs(next - last.current) >= pixelHysteresis) {
+                last.current = next
+                setTopOffset(next)
+            }
+        }
+        const schedule = () => { if (to != null) window.clearTimeout(to); to = window.setTimeout(apply, debounceMs) }
+        const on = schedule
+
+        window.addEventListener('resize', on, { passive: true })
+        // @ts-ignore
+        window.visualViewport?.addEventListener?.('resize', on)
+
+        return () => {
+            window.removeEventListener('resize', on)
+            // @ts-ignore
+            window.visualViewport?.removeEventListener?.('resize', on)
+            if (to != null) window.clearTimeout(to)
+        }
+    }, [extra, debounceMs, pixelHysteresis])
+    return topOffset
 }
 
 /* ──────────────────────────────────────────────────────────────
@@ -450,7 +481,6 @@ function StepsStickyReveal({
         tick()
         window.addEventListener('scroll', tick, { passive: true })
         window.addEventListener('resize', tick)
-        // garder VV *resize*, supprimer VV *scroll*
         // @ts-ignore
         window.visualViewport?.addEventListener?.('resize', tick)
 
@@ -487,6 +517,12 @@ function StepsStickyReveal({
         { n: '04', t: 'Accompagnement', d: 'Avant, pendant, après — vous profitez, on s’occupe du reste.' },
     ]
 
+    // Diagonale douce : chaque carte démarre légèrement décalée en X et Y puis rejoint sa place
+    // - dx: léger slide latéral dépendant de l'index (centre -> 0, bords -> +/-)
+    // - dy: montée douce
+    const baseShiftY = 22   // px de décalage vertical au début
+    const baseShiftX = 18   // px max de décalage horizontal au début (par carte autour du centre)
+
     return (
         <div
             ref={trackRef}
@@ -503,10 +539,14 @@ function StepsStickyReveal({
                         gap: 72, textAlign: 'center', flexWrap: 'nowrap', width: '100%',
                     }}>
                         {steps.map((step, i) => {
-                            // ⬇️ Apparition statique (opacité uniquement). AUCUN translate.
                             const a = Math.max(0, Math.min(1, (effectiveP - thresholds[i]) / fadeWindow))
                             const appear = phase === 'after' ? 1 : a
-                            const will = appear > 0 && appear < 1 ? 'opacity' : 'auto'
+
+                            // facteur centré autour de 0 pour X (avec 4 items → indices 0..3 -> -1.5..+1.5)
+                            const centerFactor = i - (steps.length - 1) / 2
+                            const dx = (1 - appear) * baseShiftX * centerFactor   // gauche négatif, droite positif
+                            const dy = (1 - appear) * baseShiftY + i * 32         // légère marche verticale (diagonale “montante”)
+
                             const hidden = appear <= 0.001 && phase !== 'after'
                             return (
                                 <div
@@ -514,8 +554,9 @@ function StepsStickyReveal({
                                     className="step-card"
                                     style={{
                                         minWidth: 220,
+                                        transform: `translate3d(${dx}px, ${dy}px, 0)`,
                                         opacity: appear,
-                                        willChange: will as any,
+                                        willChange: appear > 0 && appear < 1 ? 'transform, opacity' : 'auto',
                                         visibility: hidden ? 'hidden' : 'visible',
                                     }}
                                 >
