@@ -74,37 +74,50 @@ function ScrollLetters({
 /* ===== Page ===== */
 export default function Accueil() {
     const coverRef = useRef<HTMLElement | null>(null);
+
+    // ——— Mobile detection (simple & suffisant) ———
+    const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
+
     const { scrollYProgress: p } = useScroll({
         target: coverRef,
         offset: ["start start", "end start"],
     });
 
-    // Feuille blanche recouvre l’image
-    const sheetY = useTransform(p, [0, 0.4], ["100%", "0%"]);
+    // Feuille blanche recouvre l’image (un peu plus rapide sur mobile pour garder de la marge)
+    const sheetY = useTransform(p, [0, isMobile ? 0.34 : 0.40], ["100%", "0%"]);
+
     // Titre brand fade-out
     const brandOpacity = useTransform(p, [0, 0.16, 0.28], [1, 1, 0]);
 
-    // Amorce : visibilité et progression
-    const hookOpacity = useTransform(p, [0.50, 0.60, 0.965, 0.985], [0, 1, 1, 0], { clamp: true });
-    const hookProgress = useTransform(p, [0.58, 0.965], [0, 1], { clamp: true });
+    // Amorce : visibilité et progression (fenêtres compacts sur mobile)
+    const hookOpacity = useTransform(
+        p,
+        isMobile ? [0.46, 0.56, 0.96, 0.98] : [0.50, 0.60, 0.965, 0.985],
+        [0, 1, 1, 0],
+        { clamp: true }
+    );
+    const hookProgress = useTransform(
+        p,
+        isMobile ? [0.54, 0.96] : [0.58, 0.965],
+        [0, 1],
+        { clamp: true }
+    );
 
     // Séquençage exact des lignes
     const line1 = "Vivez une expérience unique";
     const line2 = "à travers le monde.";
+
+    // timings: on garde la même vitesse lettre par lettre
     const L2_START = 0.62;
     const L2_END = 0.96;
     const DELAY = 0.016;
-    const WINDOW = 0.12; // durée d'apparition par lettre
 
-    // Calcul : quand la dernière lettre de la ligne 2 atteint l’opacité 1
-    const line2Len = useMemo(() => [...line2].length, [line2]);
-    const l2LastStart = L2_START + (line2Len - 1) * DELAY;
-    const unlockAt = Math.min(L2_END, l2LastStart + WINDOW); // seuil exact de fin de la 2e ligne
-
-    // Scroll lock: actif jusqu’à la fin exacte de la 2e ligne
+    // Scroll lock: actif tant que la 2e ligne n’est PAS terminée
     const [locked, setLocked] = useState(true);
     useMotionValueEvent(hookProgress, "change", (v) => {
-        setLocked(v < unlockAt); // on libère uniquement quand v >= unlockAt
+        // **clé**: on libère UNIQUEMENT quand hookProgress == 1 (desktop & mobile)
+        if (v >= 1) setLocked(false);
+        else setLocked(true);
     });
 
     return (
@@ -127,22 +140,10 @@ export default function Accueil() {
                     {/* Accroche FIXE (immobile), ligne 1 puis ligne 2, lettres par lettres */}
                     <motion.div className="Hook" style={{ opacity: hookOpacity }}>
                         <h2 className="Hook__line ocre">
-                            <ScrollLetters
-                                text={line1}
-                                progress={hookProgress}
-                                start={0.02}
-                                end={0.60}
-                                delayPerChar={DELAY}
-                            />
+                            <ScrollLetters text={line1} progress={hookProgress} start={0.02} end={0.60} delayPerChar={DELAY} />
                         </h2>
                         <h3 className="Hook__line Hook__line--accent ocre">
-                            <ScrollLetters
-                                text={line2}
-                                progress={hookProgress}
-                                start={L2_START}
-                                end={L2_END}
-                                delayPerChar={DELAY}
-                            />
+                            <ScrollLetters text={line2} progress={hookProgress} start={L2_START} end={L2_END} delayPerChar={DELAY} />
                         </h3>
                     </motion.div>
                 </div>
@@ -292,12 +293,6 @@ h1,h2,h3,.BrandTitle,.Hook__line,.SubTitle{
 .Step__num{ font-variant-numeric:tabular-nums; font-weight:600; color:var(--c-ocre); min-width:2.6ch; }
 .Step__title{ margin:2px 0 6px 0; font-size:16px; color:var(--c-taupe); font-family:"EB Garamond", Georgia, serif; font-weight:400; }
 .Step__text{ margin:0; font-size:14.5px; color:#4b3b30; font-weight:300; }
-
-.Section--promise{ text-align:center; }
-.Prose{ max-width:72ch; font-size:17px; color:var(--c-sable); margin:0; }
-.Prose p{ margin:0 0 1rem 0; }
-.Prose--center{ margin:0 auto; }
-.Promise{ font-weight:500; color:var(--c-taupe); }
 
 .WideImageFull{ padding:0; margin:0; }
 .WideImageFull img{ display:block; width:100%; height:auto; }
