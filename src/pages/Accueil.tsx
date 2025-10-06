@@ -1,7 +1,12 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+
+/* ──────────────────────────────────────────────────────────────
+   Base / assets
+   ────────────────────────────────────────────────────────────── */
 
 // ⚠️ Dans public/index.html, ajoute bien dans <head> :
 // <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+// (Optionnel perf) <link rel="preload" as="image" href="/hero.jpg">
 
 // utilitaire assets (GH Pages friendly)
 const asset = (p: string) => `${import.meta.env.BASE_URL}${p.replace(/^\/+/, '')}`;
@@ -10,23 +15,26 @@ const asset = (p: string) => `${import.meta.env.BASE_URL}${p.replace(/^\/+/, '')
 const C = {
     sable: '#1b120b',
     taupe: '#5a3317',
-    ocre: '#5a3317',
+    ocre: '#A86B2D',     // vraie nuance ocre (≠ taupe)
     blanc: '#F9F8F6',
     bleu: '#7c9fb9',
     noir: '#121212',
     cuivre: '#9c541e',
-};
+} as const;
 
-function clamp01(x: number) { return Math.max(0, Math.min(1, x)) }
+function clamp01(x: number) { return Math.max(0, Math.min(1, x)); }
 
 /* ──────────────────────────────────────────────────────────────
    Helpers responsive & styles globaux
    ────────────────────────────────────────────────────────────── */
+
+const useIsomorphicLayoutEffect =
+    typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
 function useBreakpoint() {
     const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1920);
     useEffect(() => {
         const on = () => setW(window.innerWidth);
-        on();
         window.addEventListener('resize', on, { passive: true });
         return () => window.removeEventListener('resize', on);
     }, []);
@@ -49,6 +57,10 @@ function SafeAreaPad({ children }: { children: React.ReactNode }) {
     );
 }
 
+function Container({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+    return <div className="container" style={style}>{children}</div>;
+}
+
 function MobileGlobalCSS() {
     return (
         <style>{`
@@ -62,20 +74,39 @@ function MobileGlobalCSS() {
       body { -webkit-overflow-scrolling: touch; }
       * { -webkit-tap-highlight-color: transparent; }
 
+      .fixed-smooth { backface-visibility: hidden; transform: translateZ(0); contain: paint; }
+      .m-0 { margin: 0; }
+      .font-sans { font-family: system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji'; }
+
+      /* Steps cards (hover pur CSS) */
+      .card-step{
+        background: rgba(90,51,23,0.04);
+        border: 1px solid rgba(90,51,23,0.12);
+        border-radius: 14px;
+        padding: 18px 16px;
+        text-align: left;
+      }
+      @media (hover:hover){
+        .card-step{
+          transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease;
+        }
+        .card-step:hover{
+          transform: translateY(-2px);
+          box-shadow: 0 6px 18px rgba(0,0,0,.06);
+        }
+      }
+
       /* boutons sur mobile */
       @media (hover: none) {
         .btn-tap { transition: opacity .15s ease; }
         .btn-tap:active { opacity: .85; transform: none !important; }
       }
-
-      .fixed-smooth { backface-visibility: hidden; transform: translateZ(0); contain: paint; }
-      .m-0 { margin: 0; }
-      .font-sans { font-family: system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji'; }
     `}</style>
     );
 }
 
 /* Mesures viewport & scroll */
+
 function useVH() {
     const [vh, setVh] = useState(0);
     useEffect(() => {
@@ -93,40 +124,40 @@ function useVH() {
     return vh;
 }
 
-function useHeroProgress(heroH: number) {
-    const [p, setP] = useState(0);
+function usePrefersReducedMotion() {
+    const [reduced, setReduced] = useState(false);
     useEffect(() => {
-        const on = () => setP(clamp01(window.scrollY / Math.max(1, heroH)));
+        const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+        const on = () => setReduced(!!mq?.matches);
         on();
-        window.addEventListener('scroll', on, { passive: true });
-        return () => window.removeEventListener('scroll', on);
-    }, [heroH]);
-    return p;
+        mq?.addEventListener?.('change', on);
+        return () => mq?.removeEventListener?.('change', on);
+    }, []);
+    return reduced;
 }
 
-function useScrollY(): number {
-    const [y, setY] = React.useState(0);
-    React.useEffect(() => {
+/** Unifie scrollY + cover dans un seul hook (perf) */
+function useScrollMetrics(heroH: number) {
+    const [st, setSt] = useState({ y: 0, cover: 0 });
+    useEffect(() => {
         let raf = 0;
-        const read = () => (window.scrollY ?? window.pageYOffset ?? 0);
-        const tick = () => { raf = 0; setY(read()); };
-        const onScroll = () => { if (raf) return; raf = requestAnimationFrame(tick); };
-        setY(read());
-        window.addEventListener('scroll', onScroll, { passive: true });
-        const onVis = () => { if (document.visibilityState === 'hidden' && raf) { cancelAnimationFrame(raf); raf = 0; } };
-        document.addEventListener('visibilitychange', onVis);
-        return () => {
-            window.removeEventListener('scroll', onScroll);
-            document.removeEventListener('visibilitychange', onVis);
-            if (raf) cancelAnimationFrame(raf);
+        const tick = () => {
+            raf = 0;
+            const y = window.scrollY || 0;
+            setSt({ y, cover: clamp01(y / Math.max(1, heroH)) });
         };
-    }, []);
-    return y;
+        const on = () => { if (!raf) raf = requestAnimationFrame(tick); };
+        tick();
+        window.addEventListener('scroll', on, { passive: true });
+        return () => { window.removeEventListener('scroll', on); if (raf) cancelAnimationFrame(raf); };
+    }, [heroH]);
+    return st;
 }
 
 /* ──────────────────────────────────────────────────────────────
    Accroche (révélation lettre par lettre + scroll-réactif)
    ────────────────────────────────────────────────────────────── */
+
 function GlobalStyles() {
     return (
         <style>{`
@@ -144,7 +175,7 @@ const AccrocheLineScroll = React.memo(function AccrocheLineScroll({
     progress,
     align = 'left',
     fontSize = 'clamp(24px,6vw,64px)',
-    letterSpacing = '0.015em',
+    letterSpacing = '0.02em',
     hardness = 1.0,
     yOffset = 12,
 }: {
@@ -156,8 +187,9 @@ const AccrocheLineScroll = React.memo(function AccrocheLineScroll({
     hardness?: number
     yOffset?: number
 }) {
-    const chars = React.useMemo(() => Array.from(text), [text])
-    const n = chars.length
+    const chars = React.useMemo(() => Array.from(text), [text]);
+    const n = chars.length;
+
     const rList = React.useMemo(() => {
         if (n <= 1) return [1];
         const LAST_EPS = 0.015;
@@ -165,9 +197,11 @@ const AccrocheLineScroll = React.memo(function AccrocheLineScroll({
             i === n - 1 ? Math.max(0, 1 - LAST_EPS) : i / (n - 1)
         );
     }, [n]);
-    const smooth = (t: number) => { const c = Math.min(1, Math.max(0, t)); return c * c * (3 - 2 * c) }
-    const P0 = 0.004, P1 = 0.992
-    const p = progress <= P0 ? 0 : progress >= P1 ? 1 : (progress - P0) / (P1 - P0)
+
+    const clamp = (t: number) => Math.max(0, Math.min(1, t));
+    const ease = (t: number) => t * t * (3 - 2 * t); // smoothstep
+    const P0 = 0.004, P1 = 0.992;
+    const p = progress <= P0 ? 0 : progress >= P1 ? 1 : (progress - P0) / (P1 - P0);
 
     return (
         <h2
@@ -185,9 +219,8 @@ const AccrocheLineScroll = React.memo(function AccrocheLineScroll({
         >
             {chars.map((ch, i) => {
                 const r = rList[i];
-                const denom = Math.max(1e-6, 1 - r);
-                let a = (p - r) / denom;
-                a = smooth(Math.pow(Math.min(1, Math.max(0, a)), hardness));
+                const a0 = clamp((p - r) / Math.max(1e-6, 1 - r));
+                const a = ease(Math.pow(a0, hardness));
                 const ty = (1 - a) * yOffset;
                 const op = a;
                 return (
@@ -209,8 +242,9 @@ const AccrocheLineScroll = React.memo(function AccrocheLineScroll({
 });
 
 /* ──────────────────────────────────────────────────────────────
-   Nouvelle section simple : Titre + 4 étapes (grille responsive)
+   Section simple : Titre + 4 étapes (grille responsive)
    ────────────────────────────────────────────────────────────── */
+
 function SectionProcess({
     title = 'Notre processus',
     steps = [
@@ -226,7 +260,7 @@ function SectionProcess({
     return (
         <section aria-labelledby="process-title" style={{ background: C.blanc, padding: '96px 0 40px' }}>
             <SafeAreaPad>
-                <div className="container" style={{ textAlign: 'center' }}>
+                <Container style={{ textAlign: 'center' }}>
                     <h2 id="process-title"
                         className="m-0"
                         style={{ color: C.cuivre, fontSize: 'clamp(28px,3vw,36px)', letterSpacing: '.02em', fontWeight: 600 }}>
@@ -235,48 +269,20 @@ function SectionProcess({
 
                     <div aria-hidden style={{ height: 18 }} />
 
-                    <div
-                        role="list"
-                        style={{
-                            margin: '24px auto 0',
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(4, minmax(0,1fr))',
-                            gap: 'clamp(16px,3vw,28px)',
-                        }}
-                    >
-                        {steps.map((s, i) => (
-                            <article
-                                role="listitem"
-                                key={s.n}
-                                className="font-sans btn-tap"
-                                style={{
-                                    background: 'rgba(90,51,23,0.04)',
-                                    border: '1px solid rgba(90,51,23,0.12)',
-                                    borderRadius: 14,
-                                    padding: '18px 16px',
-                                    textAlign: 'left',
-                                    transition: 'transform .18s ease, box-shadow .18s ease, background-color .18s ease',
-                                    willChange: 'transform',
-                                }}
-                                onMouseEnter={(e) => {
-                                    if (window.matchMedia('(hover:hover)').matches) {
-                                        (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
-                                        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 6px 18px rgba(0,0,0,0.06)';
-                                    }
-                                }}
-                                onMouseLeave={(e) => {
-                                    if (window.matchMedia('(hover:hover)').matches) {
-                                        (e.currentTarget as HTMLDivElement).style.transform = '';
-                                        (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
-                                    }
-                                }}
-                            >
+                    <div role="list" className="steps-grid" style={{
+                        margin: '24px auto 0',
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(4, minmax(0,1fr))',
+                        gap: 'clamp(16px,3vw,28px)',
+                    }}>
+                        {steps.map((s) => (
+                            <article role="listitem" key={s.n} className="font-sans btn-tap card-step">
                                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
                                     <span aria-hidden
                                         style={{ fontWeight: 700, letterSpacing: '.08em', color: C.cuivre, fontSize: 14 }}>
                                         {s.n}
                                     </span>
-                                    <h3 className="m-0" style={{ color: C.taupe, fontSize: 18, fontWeight: 700, letterSpacing: '.01em' }}>
+                                    <h3 className="m-0" style={{ color: C.taupe, fontSize: 18, fontWeight: 700, letterSpacing: '.02em' }}>
                                         {s.t}
                                     </h3>
                                 </div>
@@ -286,20 +292,16 @@ function SectionProcess({
                             </article>
                         ))}
                     </div>
-                </div>
+                </Container>
             </SafeAreaPad>
 
             {/* responsive */}
             <style>{`
         @media (max-width: 1024px) {
-          section[aria-labelledby="process-title"] > div .container > div[role="list"] {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
+          .steps-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
         @media (max-width: 520px) {
-          section[aria-labelledby="process-title"] > div .container > div[role="list"] {
-            grid-template-columns: 1fr;
-          }
+          .steps-grid { grid-template-columns: 1fr; }
         }
       `}</style>
         </section>
@@ -309,12 +311,13 @@ function SectionProcess({
 /* ──────────────────────────────────────────────────────────────
    Page
    ────────────────────────────────────────────────────────────── */
+
 export default function Accueil() {
     const vh = useVH();
     const heroH = Math.round(Math.max(1, vh));
-    const cover = useHeroProgress(heroH);
-    const y = useScrollY();
+    const { y, cover } = useScrollMetrics(heroH);
     const bp = useBreakpoint();
+    const prefersReduced = usePrefersReducedMotion();
 
     const A = 'Vivez une expérience unique';
     const B = 'à travers le monde.';
@@ -325,7 +328,8 @@ export default function Accueil() {
 
     const abRef = useRef<HTMLDivElement | null>(null);
     const [accH, setAccH] = useState(0);
-    useLayoutEffect(() => {
+
+    useIsomorphicLayoutEffect(() => {
         const measure = () => {
             if (!abRef.current) return;
             const r = abRef.current.getBoundingClientRect();
@@ -343,9 +347,13 @@ export default function Accueil() {
     const targetY = -accH - GAP_PX;
     const DIST = Math.max(1, startY - targetY);
     const HANDOFF_SPAN = DIST;
-    const handoffP = clamp01((tFrom(y, heroH) - REVEAL_SPAN) / HANDOFF_SPAN);
+
+    // PRM: si l’utilisateur préfère moins d’animations, on “snap” à la fin
+    const rawHandoff = clamp01((tFrom(y, heroH) - REVEAL_SPAN) / HANDOFF_SPAN);
+    const handoffP = prefersReduced ? 1 : rawHandoff;
+
     const currentY = startY + handoffP * (targetY - startY);
-    const fadeOutA = 1 - clamp01((handoffP - 0.85) / 0.15);
+    const fadeOutA = prefersReduced ? 0 : 1 - clamp01((handoffP - 0.85) / 0.15);
     const handoffDone = handoffP >= 0.999;
     const PAGE_PAD = REVEAL_SPAN + HANDOFF_SPAN;
 
@@ -372,7 +380,15 @@ export default function Accueil() {
                             Âme du Monde
                         </h1>
                     </div>
-                    <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: cover * heroH, background: C.blanc }} />
+                    <div
+                        style={{
+                            position: 'absolute',
+                            left: 0, right: 0, bottom: 0,
+                            height: cover * heroH,
+                            background: C.blanc,
+                            willChange: prefersReduced ? 'auto' : 'height',
+                        }}
+                    />
                 </div>
             )}
 
@@ -383,15 +399,15 @@ export default function Accueil() {
             >
                 <div
                     ref={abRef}
-                    style={{ position: 'absolute', left: 0, right: 0, top: currentY, opacity: fadeOutA, willChange: 'top, opacity', transform: 'translateZ(0)' }}
+                    style={{ position: 'absolute', left: 0, right: 0, top: currentY, opacity: fadeOutA, willChange: prefersReduced ? 'auto' : 'top, opacity', transform: 'translateZ(0)' }}
                 >
-                    <div className="container">
+                    <Container>
                         <AccrocheLineScroll
                             text={A}
                             progress={Math.min(1, revealP / 0.6)}
                             align="left"
                             fontSize="clamp(24px,6vw,64px)"
-                            letterSpacing="0.015em"
+                            letterSpacing="0.02em"
                             hardness={1.0}
                             yOffset={12}
                         />
@@ -401,11 +417,11 @@ export default function Accueil() {
                             progress={revealP <= 0.6 ? 0 : Math.min(1, (revealP - 0.6) / 0.4)}
                             align="right"
                             fontSize="clamp(24px,6vw,64px)"
-                            letterSpacing="0.015em"
+                            letterSpacing="0.02em"
                             hardness={1.0}
                             yOffset={12}
                         />
-                    </div>
+                    </Container>
                 </div>
             </div>
 
@@ -416,7 +432,7 @@ export default function Accueil() {
             <div style={{ position: 'relative', zIndex: 2 }}>
                 {/* ========= Notre agence ========= */}
                 <section style={{ maxWidth: 1160, margin: '0 auto', paddingTop: 8, paddingBottom: 16, paddingLeft: 24, paddingRight: 24 }}>
-                    <div className="container" style={{ display: 'flex', alignItems: 'center', gap: 'clamp(24px,4vw,56px)', rowGap: 'clamp(28px,5vw,72px)', flexWrap: 'wrap', marginBottom: 'clamp(28px,6vw,72px)' }}>
+                    <Container style={{ display: 'flex', alignItems: 'center', gap: 'clamp(24px,4vw,56px)', rowGap: 'clamp(28px,5vw,72px)', flexWrap: 'wrap', marginBottom: 'clamp(28px,6vw,72px)' }}>
                         <div style={{ flex: '1 1 460px', minWidth: 320, minHeight: 520, display: 'flex', alignItems: 'center', paddingLeft: 0 }}>
                             <div style={{ maxWidth: '56ch' }}>
                                 <h2 className="m-0" style={{ color: C.cuivre, fontSize: 'clamp(38px,3.6vw,52px)', letterSpacing: '.02em' }}>
@@ -444,9 +460,9 @@ export default function Accueil() {
                                 }}
                             />
                         </div>
-                    </div>
+                    </Container>
 
-                    <div className="mt-12 md:mt-14 container" style={{ display: 'flex', gap: 'clamp(24px,5vw,72px)', rowGap: 'clamp(24px,5vw,64px)', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Container style={{ display: 'flex', gap: 'clamp(24px,5vw,72px)', rowGap: 'clamp(24px,5vw,64px)', alignItems: 'center', flexWrap: 'wrap' }}>
                         {/* Grand visuel (paysage) */}
                         <div
                             aria-hidden
@@ -468,10 +484,10 @@ export default function Accueil() {
                                 et créer des souvenirs impérissables.
                             </p>
                         </div>
-                    </div>
+                    </Container>
                 </section>
 
-                {/* ======= NOUVELLE SECTION SIMPLE (Titre + 4 étapes) ======= */}
+                {/* ======= SECTION : Titre + 4 étapes ======= */}
                 <SectionProcess />
 
                 {/* ======= PROMESSE ======= */}
@@ -537,13 +553,13 @@ export default function Accueil() {
                                     }}
                                     onMouseDown={e => {
                                         if (window.matchMedia('(hover: hover)').matches) {
-                                            const el = e.currentTarget;
+                                            const el = e.currentTarget as HTMLAnchorElement;
                                             el.style.transform = 'translateY(1px)';
                                             el.style.opacity = '0.95';
                                         }
                                     }}
                                     onMouseUp={e => {
-                                        const el = e.currentTarget;
+                                        const el = e.currentTarget as HTMLAnchorElement;
                                         el.style.transform = '';
                                         el.style.opacity = '1';
                                     }}
