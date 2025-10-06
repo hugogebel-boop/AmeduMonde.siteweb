@@ -15,27 +15,27 @@ const C = {
     bleu: '#7c9fb9',
     noir: '#121212',
     cuivre: '#9c541e',
-}
+};
 
 function clamp01(x: number) { return Math.max(0, Math.min(1, x)) }
 
 /* ──────────────────────────────────────────────────────────────
-   Breakpoints & global helpers
+   Helpers responsive & styles globaux
    ────────────────────────────────────────────────────────────── */
 function useBreakpoint() {
-    const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1920)
+    const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1920);
     useEffect(() => {
-        const on = () => setW(window.innerWidth)
-        on()
-        window.addEventListener('resize', on, { passive: true })
-        return () => window.removeEventListener('resize', on)
-    }, [])
+        const on = () => setW(window.innerWidth);
+        on();
+        window.addEventListener('resize', on, { passive: true });
+        return () => window.removeEventListener('resize', on);
+    }, []);
     return {
         w,
         isPhone: w <= 480,
         isTablet: w > 480 && w <= 960,
         isDesktop: w > 960,
-    }
+    };
 }
 
 function SafeAreaPad({ children }: { children: React.ReactNode }) {
@@ -46,7 +46,7 @@ function SafeAreaPad({ children }: { children: React.ReactNode }) {
         }}>
             {children}
         </div>
-    )
+    );
 }
 
 function MobileGlobalCSS() {
@@ -56,14 +56,6 @@ function MobileGlobalCSS() {
       @media (max-width: 480px) { html { font-size: 17px; } }
       .bg-cover-center { background-size: cover; background-position: center; image-rendering: auto; }
       .container { width: min(1160px, 92%); margin: 0 auto; padding-left: 16px; padding-right: 16px; }
-
-      /* steps layout hints (desktop/tablet) */
-      @media (max-width: 960px) { .steps-row { gap: 40px; } }
-      @media (max-width: 640px) {
-        .steps-row { flex-wrap: wrap; gap: 28px; justify-content: center; }
-        .step-card { min-width: 45%; }
-      }
-      @media (max-width: 480px) { .step-card { min-width: 100%; } }
 
       /* mobile/touch smoothness */
       html, body { scroll-behavior: auto; overscroll-behavior-y: contain; }
@@ -75,41 +67,41 @@ function MobileGlobalCSS() {
         .btn-tap { transition: opacity .15s ease; }
         .btn-tap:active { opacity: .85; transform: none !important; }
       }
+
       .fixed-smooth { backface-visibility: hidden; transform: translateZ(0); contain: paint; }
-.sticky-section { contain: layout paint; }
+      .m-0 { margin: 0; }
+      .font-sans { font-family: system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji'; }
     `}</style>
-    )
+    );
 }
 
-/* ──────────────────────────────────────────────────────────────
-   Mesures viewport & scroll
-   ────────────────────────────────────────────────────────────── */
+/* Mesures viewport & scroll */
 function useVH() {
-    const [vh, setVh] = useState(0)
+    const [vh, setVh] = useState(0);
     useEffect(() => {
-        const u = () => setVh(window.innerHeight)
-        u()
-        window.addEventListener('resize', u)
+        const u = () => setVh(window.innerHeight);
+        u();
+        window.addEventListener('resize', u);
         // @ts-ignore
-        window.visualViewport?.addEventListener?.('resize', u)
+        window.visualViewport?.addEventListener?.('resize', u);
         return () => {
-            window.removeEventListener('resize', u)
+            window.removeEventListener('resize', u);
             // @ts-ignore
-            window.visualViewport?.removeEventListener?.('resize', u)
-        }
-    }, [])
-    return vh
+            window.visualViewport?.removeEventListener?.('resize', u);
+        };
+    }, []);
+    return vh;
 }
 
 function useHeroProgress(heroH: number) {
-    const [p, setP] = useState(0)
+    const [p, setP] = useState(0);
     useEffect(() => {
-        const on = () => setP(clamp01(window.scrollY / Math.max(1, heroH)))
-        on()
-        window.addEventListener('scroll', on, { passive: true })
-        return () => window.removeEventListener('scroll', on)
-    }, [heroH])
-    return p
+        const on = () => setP(clamp01(window.scrollY / Math.max(1, heroH)));
+        on();
+        window.addEventListener('scroll', on, { passive: true });
+        return () => window.removeEventListener('scroll', on);
+    }, [heroH]);
+    return p;
 }
 
 function useScrollY(): number {
@@ -133,72 +125,20 @@ function useScrollY(): number {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   GlobalStyles (accroche animée)
+   Accroche (révélation lettre par lettre + scroll-réactif)
    ────────────────────────────────────────────────────────────── */
 function GlobalStyles() {
     return (
         <style>{`
-@keyframes accroche-reveal { to { opacity: 1; transform: translateY(0); } }
-.accroche-char { display: inline-block; opacity: 0; transform: translateY(12px); animation: accroche-reveal 700ms cubic-bezier(.2,.65,.35,1) forwards; will-change: transform, opacity; }
-@media (prefers-reduced-motion: reduce) {
-  .accroche-char { animation: none !important; opacity: 1 !important; transform: none !important; }
-}
-`}</style>
-    )
-}
-
-/* ──────────────────────────────────────────────────────────────
-   Accroche ligne (lettres)
-   ────────────────────────────────────────────────────────────── */
-function AccrocheLine({
-    text,
-    align = 'left',
-    fontSize = 'clamp(24px,6vw,64px)',
-    letterSpacing = '0.015em',
-    delayStartMs = 0,
-    stepDelayMs = 22,
-}: {
-    text: string
-    align?: 'left' | 'right' | 'center'
-    fontSize?: string
-    letterSpacing?: string
-    delayStartMs?: number
-    stepDelayMs?: number
-}) {
-    const chars = Array.from(text)
-    return (
-        <h2
-            className="m-0"
-            style={{
-                color: C.taupe,
-                fontSize,
-                letterSpacing,
-                lineHeight: 1.08,
-                textAlign: align,
-                minHeight: '1.1em',
-                ['--accroche-size' as any]: fontSize,
-            }}
-            aria-label={text}
-        >
-            {chars.map((ch, i) => (
-                <span
-                    key={i}
-                    className="accroche-char"
-                    style={{
-                        ['--i' as any]: i,
-                        animationDelay: `calc(${delayStartMs}ms + var(--i) * ${stepDelayMs}ms)`,
-                    } as React.CSSProperties}
-                >
-                    {ch === ' ' ? '\u00A0' : ch}
-                </span>
-            ))}
-        </h2>
-    )
+      @keyframes accroche-reveal { to { opacity: 1; transform: translateY(0); } }
+      .accroche-char { display: inline-block; opacity: 0; transform: translateY(12px); animation: accroche-reveal 700ms cubic-bezier(.2,.65,.35,1) forwards; will-change: transform, opacity; }
+      @media (prefers-reduced-motion: reduce) {
+        .accroche-char { animation: none !important; opacity: 1 !important; transform: none !important; }
+      }
+    `}</style>
+    );
 }
 
-/* ──────────────────────────────────────────────────────────────
-   Accroche scroll-réactive
-   ────────────────────────────────────────────────────────────── */
 const AccrocheLineScroll = React.memo(function AccrocheLineScroll({
     text,
     progress,
@@ -219,12 +159,12 @@ const AccrocheLineScroll = React.memo(function AccrocheLineScroll({
     const chars = React.useMemo(() => Array.from(text), [text])
     const n = chars.length
     const rList = React.useMemo(() => {
-        if (n <= 1) return [1]
-        const LAST_EPS = 0.015
+        if (n <= 1) return [1];
+        const LAST_EPS = 0.015;
         return Array.from({ length: n }, (_, i) =>
             i === n - 1 ? Math.max(0, 1 - LAST_EPS) : i / (n - 1)
-        )
-    }, [n])
+        );
+    }, [n]);
     const smooth = (t: number) => { const c = Math.min(1, Math.max(0, t)); return c * c * (3 - 2 * c) }
     const P0 = 0.004, P1 = 0.992
     const p = progress <= P0 ? 0 : progress >= P1 ? 1 : (progress - P0) / (P1 - P0)
@@ -244,12 +184,12 @@ const AccrocheLineScroll = React.memo(function AccrocheLineScroll({
             aria-label={text}
         >
             {chars.map((ch, i) => {
-                const r = rList[i]
-                const denom = Math.max(1e-6, 1 - r)
-                let a = (p - r) / denom
-                a = smooth(Math.pow(Math.min(1, Math.max(0, a)), hardness))
-                const ty = (1 - a) * yOffset
-                const op = a
+                const r = rList[i];
+                const denom = Math.max(1e-6, 1 - r);
+                let a = (p - r) / denom;
+                a = smooth(Math.pow(Math.min(1, Math.max(0, a)), hardness));
+                const ty = (1 - a) * yOffset;
+                const op = a;
                 return (
                     <span
                         key={i}
@@ -262,436 +202,153 @@ const AccrocheLineScroll = React.memo(function AccrocheLineScroll({
                     >
                         {ch === ' ' ? '\u00A0' : ch}
                     </span>
-                )
+                );
             })}
         </h2>
-    )
-})
+    );
+});
 
 /* ──────────────────────────────────────────────────────────────
-   Sticky utilities
+   Nouvelle section simple : Titre + 4 étapes (grille responsive)
    ────────────────────────────────────────────────────────────── */
-function getTopOffset(extra = 0): number {
-    // @ts-ignore
-    const vvTop = window.visualViewport?.offsetTop ?? 0
-    const nav = document.getElementById('site-nav') as HTMLElement | null
-    const navH = nav ? (nav.offsetHeight || nav.getBoundingClientRect().height || 0) : 0
-    const cs = nav ? getComputedStyle(nav) : null
-    const mt = cs ? parseFloat(cs.marginTop || '0') || 0 : 0
-    const mb = cs ? parseFloat(cs.marginBottom || '0') || 0 : 0
-    return Math.round(vvTop + navH + mt + mb + extra)
-}
-
-/* ──────────────────────────────────────────────────────────────
-   StickyBandSequence — version optimisée mobile
-   ────────────────────────────────────────────────────────────── */
-function StickyBandSequence({
-    title = 'Une approche unique pour vos voyages',
-    bandColor = C.taupe,
-    textColor = C.blanc,
-    stickyVH = 100,
-    durationVH = 140,
-    triggerAdvanceVH = 20,
+function SectionProcess({
+    title = 'Notre processus',
+    steps = [
+        { n: '01', t: 'Écoute', d: 'On clarifie vos envies, votre rythme et vos contraintes.' },
+        { n: '02', t: 'Conception', d: 'Un itinéraire sur-mesure, pensé pour le bon tempo.' },
+        { n: '03', t: 'Organisation', d: 'Transferts, réservations, adresses rares préparées pour vous.' },
+        { n: '04', t: 'Accompagnement', d: 'Avant, pendant, après — vous profitez, on s’occupe du reste.' },
+    ],
 }: {
-    title?: string
-    bandColor?: string
-    textColor?: string
-    stickyVH?: number
-    durationVH?: number
-    triggerAdvanceVH?: number
+    title?: string;
+    steps?: { n: string; t: string; d: string }[];
 }) {
-    const vh = useVH()
-    const stickyH = Math.max(1, Math.round((vh * stickyVH) / 100))
-    const phaseH = Math.max(1, Math.round((vh * durationVH) / 100))
-    const trackH = phaseH * 2
-
-    const sectionRef = useRef<HTMLElement | null>(null)
-    const [p, setP] = useState(0)
-    const [phase, setPhase] = useState<'before' | 'pin' | 'after'>('before')
-    const [topOffsetReal, setTopOffsetReal] = useState(getTopOffset())
-    const advancePx = Math.round((vh * triggerAdvanceVH) / 100)
-    const sentDone = useRef(false)
-
-    // Écouteurs stables (pas de rebind à chaque frame)
-    useEffect(() => {
-        let raf = 0
-        const EPS = 0.0008
-
-        const onScrollCompute = () => {
-            const el = sectionRef.current; if (!el) return
-            const rect = el.getBoundingClientRect()
-            const toReal = getTopOffset()
-            const toTrig = toReal - advancePx
-
-            if (toReal !== topOffsetReal) setTopOffsetReal(toReal)
-
-            const total = Math.max(1, rect.height - stickyH)
-            const advanced = Math.min(total, Math.max(0, toTrig - rect.top))
-            const np = advanced / total
-
-            setP(prev => (Math.abs(prev - np) > EPS ? np : prev))
-
-            if (rect.top - toTrig > 0) {
-                setPhase(prev => (prev !== 'before' ? 'before' : prev))
-            } else if (rect.bottom >= stickyH + toTrig) {
-                setPhase(prev => (prev !== 'pin' ? 'pin' : prev))
-            } else {
-                setPhase(prev => (prev !== 'after' ? 'after' : prev))
-            }
-
-            if (np >= 0.999 && !sentDone.current) {
-                sentDone.current = true
-                window.dispatchEvent(new CustomEvent('amd_band_done', { detail: { stickyH, topOffset: toReal } }))
-            }
-            if (np < 0.5 && sentDone.current) sentDone.current = false
-        }
-
-        const tick = () => { if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(onScrollCompute) }
-
-        // première mesure
-        tick()
-        window.addEventListener('scroll', tick, { passive: true })
-        window.addEventListener('resize', tick)
-        // garder visualViewport *resize* (barres iOS), supprimer visualViewport *scroll*
-        // @ts-ignore
-        window.visualViewport?.addEventListener?.('resize', tick)
-
-        return () => {
-            if (raf) cancelAnimationFrame(raf)
-            window.removeEventListener('scroll', tick)
-            window.removeEventListener('resize', tick)
-            // @ts-ignore
-            window.visualViewport?.removeEventListener?.('resize', tick)
-        }
-        // ne rebinder qu'en cas de changement des constantes réelles
-    }, [stickyH, advancePx, topOffsetReal])
-
-    // Progression (révélation puis recouvrement)
-    const ease = (t: number) => { const c = Math.min(1, Math.max(0, t)); return c * c * (3 - 2 * c) }
-    const split = 0.5
-    const inReveal = p < split
-    const revealP = inReveal ? ease(p / split) : 1
-    const coverP = inReveal ? 0 : ease((p - split) / (1 - split))
-    const preClipTop = (1 - revealP) * 100
-    const clipStyle: React.CSSProperties = inReveal
-        ? { clipPath: `inset(${preClipTop}% 0 0 0)` }
-        : { clipPath: 'inset(0 0 0 0)' }
-
-    const coverOverlayStyle: React.CSSProperties = {
-        position: 'absolute', inset: 0, background: C.blanc,
-        transform: `scaleY(${coverP})`, transformOrigin: 'bottom', willChange: 'transform', pointerEvents: 'none',
-    }
-
-    const fixedLayer: React.CSSProperties = {
-        position: 'fixed', top: 0, left: 0, right: 0, height: stickyH,
-        transform: `translate3d(0, ${topOffsetReal}px, 0)`,
-        zIndex: 6, overflow: 'hidden', background: 'transparent',
-        willChange: 'transform',
-        paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)',
-    }
-
     return (
-        <section ref={sectionRef as any} style={{ height: trackH, position: 'relative' }}>
-            {phase === 'pin' && (
-                <div style={fixedLayer} className="fixed-smooth" aria-hidden>
-                    <div style={{ position: 'absolute', inset: 0, ...clipStyle }}>
-                        <div style={{ position: 'absolute', inset: 0, background: bandColor }} />
-                        <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', pointerEvents: 'none' }}>
-                            <h2
-                                className="m-0"
+        <section aria-labelledby="process-title" style={{ background: C.blanc, padding: '96px 0 40px' }}>
+            <SafeAreaPad>
+                <div className="container" style={{ textAlign: 'center' }}>
+                    <h2 id="process-title"
+                        className="m-0"
+                        style={{ color: C.cuivre, fontSize: 'clamp(28px,3vw,36px)', letterSpacing: '.02em', fontWeight: 600 }}>
+                        {title}
+                    </h2>
+
+                    <div aria-hidden style={{ height: 18 }} />
+
+                    <div
+                        role="list"
+                        style={{
+                            margin: '24px auto 0',
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(4, minmax(0,1fr))',
+                            gap: 'clamp(16px,3vw,28px)',
+                        }}
+                    >
+                        {steps.map((s, i) => (
+                            <article
+                                role="listitem"
+                                key={s.n}
+                                className="font-sans btn-tap"
                                 style={{
-                                    color: textColor,
-                                    fontSize: 'var(--accroche-size, clamp(24px,6vw,64px))',
-                                    lineHeight: 1.2,
-                                    letterSpacing: '0.015em',
-                                    whiteSpace: 'nowrap',
-                                    textAlign: 'center',
-                                    padding: '0 24px',
-                                    textShadow: 'none',
-                                    opacity: 1,
+                                    background: 'rgba(90,51,23,0.04)',
+                                    border: '1px solid rgba(90,51,23,0.12)',
+                                    borderRadius: 14,
+                                    padding: '18px 16px',
+                                    textAlign: 'left',
+                                    transition: 'transform .18s ease, box-shadow .18s ease, background-color .18s ease',
+                                    willChange: 'transform',
+                                }}
+                                onMouseEnter={(e) => {
+                                    if (window.matchMedia('(hover:hover)').matches) {
+                                        (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
+                                        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 6px 18px rgba(0,0,0,0.06)';
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (window.matchMedia('(hover:hover)').matches) {
+                                        (e.currentTarget as HTMLDivElement).style.transform = '';
+                                        (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
+                                    }
                                 }}
                             >
-                                {title}
-                            </h2>
-                        </div>
-                    </div>
-                    {!inReveal && <div style={coverOverlayStyle} />}
-                </div>
-            )}
-        </section>
-    )
-}
-
-/* ──────────────────────────────────────────────────────────────
-   StepsStickyReveal (responsive)
-   ────────────────────────────────────────────────────────────── */
-/* ──────────────────────────────────────────────────────────────
-   StepsStickyReveal — version optimisée mobile
-   ────────────────────────────────────────────────────────────── */
-function StepsStickyReveal({
-    trackVH = 160,
-    stickyVH = 80,
-    thresholds = [0.00, 0.22, 0.48, 0.74],
-    fadeWindow = 0.18,
-}: {
-    trackVH?: number
-    stickyVH?: number
-    thresholds?: number[]
-    fadeWindow?: number
-}) {
-    const vh = useVH()
-    const trackH = Math.round((vh * trackVH) / 100)
-    const stickyH = Math.round((vh * stickyVH) / 100)
-
-    const [topOffset, setTopOffset] = useState(getTopOffset())
-    const [armed, setArmed] = useState(false)
-
-    // handoff quand le bandeau est terminé
-    useEffect(() => {
-        const onDone = (e: any) => {
-            setArmed(true)
-            if (e?.detail?.topOffset != null) setTopOffset(e.detail.topOffset)
-        }
-        const onVV = () => setTopOffset(getTopOffset())
-        window.addEventListener('amd_band_done', onDone as any)
-        // @ts-ignore
-        window.visualViewport?.addEventListener?.('resize', onVV)
-        // (pas de visualViewport.scroll, trop bruyant)
-        return () => {
-            window.removeEventListener('amd_band_done', onDone as any)
-            // @ts-ignore
-            window.visualViewport?.removeEventListener?.('resize', onVV)
-        }
-    }, [])
-
-    const trackRef = useRef<HTMLDivElement | null>(null)
-    const [p, setP] = useState(0)
-    const [phase, setPhase] = useState<'before' | 'pin' | 'after'>('before')
-
-    // Écouteurs stables (pas de dépendance sur p/phase)
-    useEffect(() => {
-        let raf = 0
-        const EPS = 0.0008
-
-        const onScrollCompute = () => {
-            const el = trackRef.current; if (!el) return
-            const rect = el.getBoundingClientRect()
-            const to = topOffset
-            const total = Math.max(1, rect.height - stickyH)
-            const advanced = Math.min(total, Math.max(0, to - rect.top))
-            const np = advanced / total
-
-            setP(prev => (Math.abs(prev - np) > EPS ? np : prev))
-
-            const nextPhase =
-                (rect.top - to > 0) ? 'before' :
-                    (rect.bottom >= stickyH + to) ? 'pin' : 'after'
-
-            setPhase(prev => (prev === nextPhase ? prev : nextPhase))
-        }
-
-        const tick = () => { if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(onScrollCompute) }
-
-        tick()
-        window.addEventListener('scroll', tick, { passive: true })
-        window.addEventListener('resize', tick)
-        // garder VV *resize*, supprimer VV *scroll*
-        // @ts-ignore
-        window.visualViewport?.addEventListener?.('resize', tick)
-
-        return () => {
-            if (raf) cancelAnimationFrame(raf)
-            window.removeEventListener('scroll', tick)
-            window.removeEventListener('resize', tick)
-            // @ts-ignore
-            window.visualViewport?.removeEventListener?.('resize', tick)
-        }
-    }, [stickyH, topOffset, trackH])
-
-    const effectiveP = armed ? p : 0
-
-    const layerPos: React.CSSProperties =
-        phase === 'before'
-            ? { position: 'absolute', top: 0, left: 0, right: 0, height: stickyH }
-            : phase === 'pin'
-                ? {
-                    position: 'fixed', top: 0, left: 0, right: 0, height: stickyH,
-                    zIndex: 10, transform: `translate3d(0, ${topOffset}px, 0)`,
-                    willChange: 'transform', pointerEvents: 'none', background: 'transparent',
-                }
-                : { position: 'absolute', left: 0, right: 0, bottom: 0, height: stickyH }
-
-    const steps = [
-        { n: '01', t: 'Écoute', d: 'On clarifie vos envies, votre rythme et vos contraintes.' },
-        { n: '02', t: 'Conception', d: 'Un itinéraire sur-mesure, pensé pour le bon tempo.' },
-        { n: '03', t: 'Organisation', d: 'Transferts, réservations, adresses rares préparées pour vous.' },
-        { n: '04', t: 'Accompagnement', d: 'Avant, pendant, après — vous profitez, on s’occupe du reste.' },
-    ]
-
-    return (
-        <div
-            ref={trackRef}
-            style={{ height: trackH, position: 'relative', overflow: 'visible', zIndex: 8, background: 'transparent' }}
-        >
-            <div style={layerPos} className={phase === 'pin' ? 'fixed-smooth' : undefined}>
-                <div style={{
-                    maxWidth: 1160, height: '100%', margin: '0 auto',
-                    display: 'flex', justifyContent: 'center', alignItems: 'center',
-                    paddingLeft: 24, paddingRight: 24, background: 'transparent',
-                }}>
-                    <div className="steps-row" style={{
-                        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-                        gap: 72, textAlign: 'center', flexWrap: 'nowrap', width: '100%',
-                    }}>
-                        {steps.map((step, i) => {
-                            const a = Math.max(0, Math.min(1, (effectiveP - thresholds[i]) / fadeWindow))
-                            const appear = phase === 'after' ? 1 : a
-                            const y = i * 48 + (1 - appear) * 16
-                            const hidden = appear <= 0.001 && phase !== 'after'
-                            return (
-                                <div
-                                    key={step.n}
-                                    className="step-card"
-                                    style={{
-                                        minWidth: 220,
-                                        transform: `translateY(${y}px) translateZ(0)`,
-                                        opacity: appear,
-                                        willChange: 'transform, opacity',
-                                        visibility: hidden ? 'hidden' : 'visible',
-                                    }}
-                                >
-                                    <h3 className="m-0" style={{ fontSize: 20, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: C.cuivre, marginBottom: 8, whiteSpace: 'nowrap' }}>
-                                        {step.n}. {step.t}
+                                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
+                                    <span aria-hidden
+                                        style={{ fontWeight: 700, letterSpacing: '.08em', color: C.cuivre, fontSize: 14 }}>
+                                        {s.n}
+                                    </span>
+                                    <h3 className="m-0" style={{ color: C.taupe, fontSize: 18, fontWeight: 700, letterSpacing: '.01em' }}>
+                                        {s.t}
                                     </h3>
-                                    <p style={{ fontSize: 16, lineHeight: 1.6, color: 'rgba(90,51,23,.95)', margin: 0, maxWidth: 260 }}>
-                                        {step.d}
-                                    </p>
                                 </div>
-                            )
-                        })}
+                                <p className="m-0" style={{ color: 'rgba(90,51,23,.92)', fontSize: 15.8, lineHeight: 1.6 }}>
+                                    {s.d}
+                                </p>
+                            </article>
+                        ))}
                     </div>
                 </div>
-            </div>
-        </div>
-    )
-}
+            </SafeAreaPad>
 
-/* ──────────────────────────────────────────────────────────────
-   StepsStickyVertical (responsive)
-   ────────────────────────────────────────────────────────────── */
-function StepsVertical() {
-    const ref = React.useRef<HTMLDivElement | null>(null)
-    const [visible, setVisible] = useState<boolean[]>(new Array(4).fill(false))
-
-    useEffect(() => {
-        const el = ref.current
-        if (!el) return
-        const items = Array.from(el.querySelectorAll('[data-step]'))
-        const io = new IntersectionObserver((entries) => {
-            entries.forEach(e => {
-                const i = Number((e.target as HTMLElement).dataset.stepIndex || -1)
-                if (i >= 0 && e.isIntersecting) {
-                    setVisible(prev => {
-                        if (prev[i]) return prev
-                        const cp = prev.slice(); cp[i] = true; return cp
-                    })
-                }
-            })
-        }, { rootMargin: '0px 0px -15% 0px', threshold: 0.2 })
-        items.forEach(it => io.observe(it))
-        return () => io.disconnect()
-    }, [])
-
-    const steps = [
-        { n: '01', t: 'Écoute', d: 'On clarifie vos envies, votre rythme et vos contraintes.' },
-        { n: '02', t: 'Conception', d: 'Un itinéraire sur-mesure, pensé pour le bon tempo.' },
-        { n: '03', t: 'Organisation', d: 'Transferts, réservations, adresses rares préparées pour vous.' },
-        { n: '04', t: 'Accompagnement', d: 'Avant, pendant, après — vous profitez, on s’occupe du reste.' },
-    ]
-
-    return (
-        <section ref={ref} style={{ padding: '36px 16px 12px' }}>
-            <div style={{ maxWidth: 720, margin: '0 auto' }}>
-                {steps.map((s, i) => {
-                    const on = visible[i]
-                    return (
-                        <div
-                            key={s.n}
-                            data-step
-                            data-step-index={i}
-                            style={{
-                                opacity: on ? 1 : 0,
-                                transform: `translateY(${on ? 0 : 12}px)`,
-                                transition: 'opacity .28s ease, transform .28s ease',
-                                willChange: 'transform, opacity',
-                                background: 'transparent',
-                                padding: '14px 4px',
-                            }}
-                        >
-                            <h3 className="m-0" style={{ fontSize: 18, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: C.cuivre, marginBottom: 6 }}>
-                                {s.n}. {s.t}
-                            </h3>
-                            <p className="m-0 font-sans" style={{ fontSize: 16, lineHeight: 1.65, color: 'rgba(90,51,23,.95)' }}>
-                                {s.d}
-                            </p>
-                            <div style={{ height: 10 }} />
-                            <div style={{ height: 1, background: 'rgba(90,51,23,.12)' }} />
-                        </div>
-                    )
-                })}
-            </div>
+            {/* responsive */}
+            <style>{`
+        @media (max-width: 1024px) {
+          section[aria-labelledby="process-title"] > div .container > div[role="list"] {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+        @media (max-width: 520px) {
+          section[aria-labelledby="process-title"] > div .container > div[role="list"] {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
         </section>
-    )
+    );
 }
 
 /* ──────────────────────────────────────────────────────────────
    Page
    ────────────────────────────────────────────────────────────── */
 export default function Accueil() {
-    const vh = useVH()
-    const heroH = Math.round(Math.max(1, vh))
-    const cover = useHeroProgress(heroH)
-    const y = useScrollY()
+    const vh = useVH();
+    const heroH = Math.round(Math.max(1, vh));
+    const cover = useHeroProgress(heroH);
+    const y = useScrollY();
+    const bp = useBreakpoint();
 
-    const A = 'Vivez une expérience unique'
-    const B = 'à travers le monde.'
+    const A = 'Vivez une expérience unique';
+    const B = 'à travers le monde.';
 
-    const REVEAL_SPAN = Math.round(heroH * 1.0)
-    const revealP = clamp01(tFrom(y, heroH) / Math.max(1, REVEAL_SPAN))
+    // accroche (position/scénographie)
+    const REVEAL_SPAN = Math.round(heroH * 1.0);
+    const revealP = clamp01(tFrom(y, heroH) / Math.max(1, REVEAL_SPAN));
 
-    const abRef = useRef<HTMLDivElement | null>(null)
-    const [accH, setAccH] = useState(0)
+    const abRef = useRef<HTMLDivElement | null>(null);
+    const [accH, setAccH] = useState(0);
     useLayoutEffect(() => {
         const measure = () => {
-            if (!abRef.current) return
-            const r = abRef.current.getBoundingClientRect()
-            setAccH(Math.ceil(r.height))
-        }
-        measure()
-        window.addEventListener('resize', measure)
-        return () => window.removeEventListener('resize', measure)
-    }, [vh])
+            if (!abRef.current) return;
+            const r = abRef.current.getBoundingClientRect();
+            setAccH(Math.ceil(r.height));
+        };
+        measure();
+        window.addEventListener('resize', measure);
+        return () => window.removeEventListener('resize', measure);
+    }, [vh]);
 
-    const GAP_VH = 25
-    const GAP_PX = (vh * GAP_VH) / 100
+    const GAP_VH = 25;
+    const GAP_PX = (vh * GAP_VH) / 100;
 
-    const startY = Math.max(0, (heroH - accH) / 2)
-    const targetY = -accH - GAP_PX
-    const DIST = Math.max(1, startY - targetY)
-    const HANDOFF_SPAN = DIST
-    const handoffP = clamp01((tFrom(y, heroH) - REVEAL_SPAN) / HANDOFF_SPAN)
-    const currentY = startY + handoffP * (targetY - startY)
-    const fadeOutA = 1 - clamp01((handoffP - 0.85) / 0.15)
-    const handoffDone = handoffP >= 0.999
-    const PAGE_PAD = REVEAL_SPAN + HANDOFF_SPAN
-    const [hideHeroCover, setHideHeroCover] = useState(false)
-    useEffect(() => {
-        const onPin = () => setHideHeroCover(true)
-        window.addEventListener('amd_band_done', onPin as any)
-        return () => window.removeEventListener('amd_band_done', onPin as any)
-    }, [])
-    const EXTRA_GAP_PX = Math.round((vh * 12) / 100)
-    const bp = useBreakpoint()
+    const startY = Math.max(0, (heroH - accH) / 2);
+    const targetY = -accH - GAP_PX;
+    const DIST = Math.max(1, startY - targetY);
+    const HANDOFF_SPAN = DIST;
+    const handoffP = clamp01((tFrom(y, heroH) - REVEAL_SPAN) / HANDOFF_SPAN);
+    const currentY = startY + handoffP * (targetY - startY);
+    const fadeOutA = 1 - clamp01((handoffP - 0.85) / 0.15);
+    const handoffDone = handoffP >= 0.999;
+    const PAGE_PAD = REVEAL_SPAN + HANDOFF_SPAN;
+
     return (
         <div className="font-[Cormorant_Garamond]" style={{ color: C.taupe, background: C.blanc, margin: 0, overflowX: 'hidden' }}>
             <GlobalStyles />
@@ -754,13 +411,12 @@ export default function Accueil() {
 
             {/* fin accroche */}
             <div style={{ height: PAGE_PAD }} />
-            <div style={{ height: EXTRA_GAP_PX }} />
 
             {/* CONTENU */}
             <div style={{ position: 'relative', zIndex: 2 }}>
                 {/* ========= Notre agence ========= */}
                 <section style={{ maxWidth: 1160, margin: '0 auto', paddingTop: 8, paddingBottom: 16, paddingLeft: 24, paddingRight: 24 }}>
-                    <div className="container" style={{ display: 'flex', alignItems: 'center', gap: 'clamp(24px,4vw,56px)', rowGap: 'clamp(28px,5vw,72px)', flexWrap: 'wrap', marginBottom: 'clamp(28px,6vw,72px)'}}>
+                    <div className="container" style={{ display: 'flex', alignItems: 'center', gap: 'clamp(24px,4vw,56px)', rowGap: 'clamp(28px,5vw,72px)', flexWrap: 'wrap', marginBottom: 'clamp(28px,6vw,72px)' }}>
                         <div style={{ flex: '1 1 460px', minWidth: 320, minHeight: 520, display: 'flex', alignItems: 'center', paddingLeft: 0 }}>
                             <div style={{ maxWidth: '56ch' }}>
                                 <h2 className="m-0" style={{ color: C.cuivre, fontSize: 'clamp(38px,3.6vw,52px)', letterSpacing: '.02em' }}>
@@ -815,33 +471,17 @@ export default function Accueil() {
                     </div>
                 </section>
 
-                {/* Espace avant le sticky band */}
-                <div style={{ height: Math.round(vh * 0.0) }} />
+                {/* ======= NOUVELLE SECTION SIMPLE (Titre + 4 étapes) ======= */}
+                <SectionProcess />
 
-                <StickyBandSequence
-                    stickyVH={bp.isPhone ? 90 : bp.isTablet ? 95 : 100}
-                    durationVH={bp.isPhone ? 110 : bp.isTablet ? 125 : 140}
-                    triggerAdvanceVH={bp.isPhone ? 16 : 22}
-                />
-
-                {bp.isPhone ? (
-                    <StepsVertical />
-                ) : (
-                    <StepsStickyReveal
-                        trackVH={bp.isTablet ? 170 : 160}
-                        stickyVH={bp.isTablet ? 75 : 80}
-                        thresholds={[0.00, 0.22, 0.48, 0.74]}
-                        fadeWindow={0.20}
-                    />
-                )}
-
-                {/* ======= UNE PROMESSE ======= */}
-                <section style={{ background: C.blanc, paddingTop: 180, paddingBottom: 120 }}>
+                {/* ======= PROMESSE ======= */}
+                <section style={{ background: C.blanc, paddingTop: 160, paddingBottom: 110 }}>
                     <SafeAreaPad>
                         <div style={{ maxWidth: 860, margin: '0 auto', display: 'grid', placeItems: 'center', textAlign: 'center', padding: '0 16px' }}>
-                            <h2 className="mb-6" style={{ fontSize: 32, fontWeight: 600, color: C.cuivre, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                            <h2 className="m-0" style={{ fontSize: 32, fontWeight: 600, color: C.cuivre, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                 Une promesse
                             </h2>
+                            <div aria-hidden style={{ height: 14 }} />
                             <p className="font-sans" style={{ fontSize: 20, lineHeight: 1.9, color: 'rgba(90,51,23,.95)', maxWidth: 720, margin: '0 auto' }}>
                                 Le vrai luxe ne réside pas dans l’accumulation, mais dans la justesse.
                                 Nous vous promettons des voyages sobres et raffinés, où chaque détail compte,
@@ -873,19 +513,18 @@ export default function Accueil() {
                 />
 
                 {/* ======= CONTACT ======= */}
-                <section style={{ background: C.blanc, paddingTop: 272, paddingBottom: 126 }}>
+                <section style={{ background: C.blanc, paddingTop: 220, paddingBottom: 120 }}>
                     <SafeAreaPad>
                         <div style={{ maxWidth: 920, margin: '0 auto', display: 'grid', placeItems: 'center', textAlign: 'center', padding: '0 16px' }}>
                             <h2 className="m-0" style={{ fontSize: 'clamp(28px,3vw,36px)', color: C.cuivre, fontWeight: 600, letterSpacing: '0.02em' }}>
                                 Votre prochaine évasion commence ici
                             </h2>
 
-                            <p className="mt-4 font-sans" style={{ fontSize: 18, lineHeight: 1.8, color: 'rgba(90,51,23,.95)', maxWidth: 680, margin: '12px auto 0' }}>
-                                Laissez-nous transformer vos envies en un voyage unique,
-                                sculpté selon vos envies.
+                            <p className="font-sans" style={{ fontSize: 18, lineHeight: 1.8, color: 'rgba(90,51,23,.95)', maxWidth: 680, margin: '12px auto 0' }}>
+                                Laissez-nous transformer vos envies en un voyage unique, sculpté selon vos envies.
                             </p>
 
-                            <div style={{ marginTop: 32 }}>
+                            <div style={{ marginTop: 28 }}>
                                 <a
                                     href="#/contact"
                                     className="font-sans text-[15px] btn-tap"
@@ -898,15 +537,15 @@ export default function Accueil() {
                                     }}
                                     onMouseDown={e => {
                                         if (window.matchMedia('(hover: hover)').matches) {
-                                            const el = e.currentTarget
-                                            el.style.transform = 'translateY(1px)'
-                                            el.style.opacity = '0.95'
+                                            const el = e.currentTarget;
+                                            el.style.transform = 'translateY(1px)';
+                                            el.style.opacity = '0.95';
                                         }
                                     }}
                                     onMouseUp={e => {
-                                        const el = e.currentTarget
-                                        el.style.transform = ''
-                                        el.style.opacity = '1'
+                                        const el = e.currentTarget;
+                                        el.style.transform = '';
+                                        el.style.opacity = '1';
                                     }}
                                 >
                                     Commencer l’aventure
@@ -920,11 +559,11 @@ export default function Accueil() {
             {/* air en bas */}
             <div style={{ height: Math.round(vh * 0.1) }} />
         </div>
-    )
+    );
 }
 
 /** helper */
 function tFrom(y: number, heroH: number) {
-    const introOrigin = heroH
-    return Math.max(0, y - introOrigin)
+    const introOrigin = heroH;
+    return Math.max(0, y - introOrigin);
 }
