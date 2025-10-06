@@ -1,553 +1,316 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from "react";
+import { motion, useScroll, useTransform, MotionValue, useMotionValueEvent } from "framer-motion";
 
-/* ──────────────────────────────────────────────────────────────
-   Base / assets
-   ────────────────────────────────────────────────────────────── */
+/* ===== Assets ===== */
+const asset = (p: string) => `${import.meta.env.BASE_URL}${p.replace(/^\/+/, "")}`;
 
-// ⚠️ Dans public/index.html, ajoute bien dans <head> :
-// <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-// (Optionnel perf) <link rel="preload" as="image" href="/hero.jpg">
-
-// utilitaire assets (GH Pages friendly)
-const asset = (p: string) => `${import.meta.env.BASE_URL}${p.replace(/^\/+/, '')}`;
-
-/** Palette */
+/* ===== Palette ===== */
 const C = {
-    sable: '#1b120b',
-    taupe: '#5a3317',
-    ocre: '#A86B2D',     // vraie nuance ocre (≠ taupe)
-    blanc: '#F9F8F6',
-    bleu: '#7c9fb9',
-    noir: '#121212',
-    cuivre: '#9c541e',
-} as const;
+    sable: "#1b120b",
+    taupe: "#5a3317",
+    ocre: "#9c541e",
+    blanc: "#F9F8F6",
+    noir: "#121212",
+};
 
-function clamp01(x: number) { return Math.max(0, Math.min(1, x)); }
-
-/* ──────────────────────────────────────────────────────────────
-   Helpers responsive & styles globaux
-   ────────────────────────────────────────────────────────────── */
-
-const useIsomorphicLayoutEffect =
-    typeof window !== 'undefined' ? useLayoutEffect : useEffect;
-
-function useBreakpoint() {
-    const [w, setW] = useState(typeof window !== 'undefined' ? window.innerWidth : 1920);
-    useEffect(() => {
-        const on = () => setW(window.innerWidth);
-        window.addEventListener('resize', on, { passive: true });
-        return () => window.removeEventListener('resize', on);
-    }, []);
-    return {
-        w,
-        isPhone: w <= 480,
-        isTablet: w > 480 && w <= 960,
-        isDesktop: w > 960,
+/* ===== Gate qui bloque le scroll (overlay) ===== */
+function ScrollGate({ active }: { active: boolean }) {
+    if (!active) return null;
+    const stop = (e: React.UIEvent | React.WheelEvent | React.TouchEvent) => {
+        e.preventDefault?.();
+        (e as any).stopPropagation?.();
     };
-}
-
-function SafeAreaPad({ children }: { children: React.ReactNode }) {
     return (
-        <div style={{
-            paddingLeft: 'env(safe-area-inset-left)',
-            paddingRight: 'env(safe-area-inset-right)',
-        }}>
-            {children}
-        </div>
+        <div
+            aria-hidden
+            onWheel={stop}
+            onTouchMove={stop}
+            onScroll={stop as any}
+            style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 9999,
+                touchAction: "none",
+                overscrollBehavior: "contain",
+                background: "transparent",
+            }}
+        />
     );
 }
 
-function Container({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-    return <div className="container" style={style}>{children}</div>;
-}
-
-function GlobalCSS() {
-    return (
-        <style>{`
-      :root { color-scheme: only light; }
-      /* typographie & layout responsive */
-      @media (max-width: 480px) { html { font-size: 17px; } }
-      .bg-cover-center { background-size: cover; background-position: center; image-rendering: auto; }
-      .container { width: min(1160px, 92%); margin: 0 auto; padding-left: 16px; padding-right: 16px; }
-
-      /* mobile/touch smoothness */
-      html, body { scroll-behavior: auto; overscroll-behavior-y: contain; }
-      body { -webkit-overflow-scrolling: touch; }
-      * { -webkit-tap-highlight-color: transparent; }
-
-      .fixed-smooth { backface-visibility: hidden; transform: translateZ(0); contain: paint; }
-      .m-0 { margin: 0; }
-      .font-sans { font-family: system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji'; }
-
-      /* Utilitaires typo */
-      .h2-cuivre { color: ${C.cuivre}; font-size: clamp(28px,3vw,36px); letter-spacing: .02em; font-weight: 600; }
-      .text-body { font-family: system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial; line-height: 1.7; color: rgba(90,51,23,.95); }
-      .max-ch { max-width: 65ch; }
-
-      /* Focus visible cohérent */
-      a:focus-visible, .btn-tap:focus-visible { outline: 2px solid ${C.cuivre}; outline-offset: 3px; border-radius: 12px; }
-      @media (hover:hover){ a.btn-tap:hover{ box-shadow: 0 8px 24px rgba(0,0,0,.08); } }
-
-      /* Steps cards */
-      .steps-grid{ display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: clamp(14px, 2.5vw, 28px); }
-      .card-step{ background: rgba(90,51,23,0.04); border: 1px solid rgba(90,51,23,0.12); border-radius: 14px; padding: 18px 16px; text-align: left; }
-      @media (hover:hover){
-        .card-step{ transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease; }
-        .card-step:hover{ transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.06); }
-      }
-
-      /* boutons sur mobile */
-      @media (hover: none) {
-        .btn-tap { transition: opacity .15s ease; }
-        .btn-tap:active { opacity: .85; transform: none !important; }
-      }
-
-      /* Responsive paliers grille */
-      @media (max-width: 1024px){ .steps-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-      @media (max-width: 680px){  .steps-grid { grid-template-columns: 1fr; } }
-
-      /* Contraste accru si demandé */
-      @media (prefers-contrast: more){
-        .card-step{ border-color: rgba(90,51,23,.28); }
-        a.btn-tap{ box-shadow: inset 0 0 0 2px ${C.cuivre}; }
-      }
-    `}</style>
-    );
-}
-
-/* Mesures viewport & scroll */
-
-function useVH() {
-    const [vh, setVh] = useState(0);
-    useEffect(() => {
-        const u = () => setVh(window.innerHeight);
-        u();
-        window.addEventListener('resize', u);
-        // @ts-ignore
-        window.visualViewport?.addEventListener?.('resize', u);
-        return () => {
-            window.removeEventListener('resize', u);
-            // @ts-ignore
-            window.visualViewport?.removeEventListener?.('resize', u);
-        };
-    }, []);
-    return vh;
-}
-
-function usePrefersReducedMotion() {
-    const [reduced, setReduced] = useState(false);
-    useEffect(() => {
-        const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)');
-        const on = () => setReduced(!!mq?.matches);
-        on();
-        mq?.addEventListener?.('change', on);
-        return () => mq?.removeEventListener?.('change', on);
-    }, []);
-    return reduced;
-}
-
-/** Unifie scrollY + cover dans un seul hook (perf) */
-function useScrollMetrics(heroH: number) {
-    const [st, setSt] = useState({ y: 0, cover: 0 });
-    useEffect(() => {
-        let raf = 0;
-        const tick = () => {
-            raf = 0;
-            const y = window.scrollY || 0;
-            setSt({ y, cover: clamp01(y / Math.max(1, heroH)) });
-        };
-        const on = () => { if (!raf) raf = requestAnimationFrame(tick); };
-        tick();
-        window.addEventListener('scroll', on, { passive: true });
-        return () => { window.removeEventListener('scroll', on); if (raf) cancelAnimationFrame(raf); };
-    }, [heroH]);
-    return st;
-}
-
-/* ──────────────────────────────────────────────────────────────
-   Accroche (révélation lettre par lettre + scroll-réactif)
-   ────────────────────────────────────────────────────────────── */
-
-function KeyframesStyles() {
-    return (
-        <style>{`
-      @keyframes accroche-reveal { to { opacity: 1; transform: translateY(0); } }
-      .accroche-char { display: inline-block; opacity: 0; transform: translateY(12px); animation: accroche-reveal 700ms cubic-bezier(.2,.65,.35,1) forwards; will-change: transform, opacity; }
-      @media (prefers-reduced-motion: reduce) {
-        .accroche-char { animation: none !important; opacity: 1 !important; transform: none !important; }
-      }
-    `}</style>
-    );
-}
-
-const AccrocheLineScroll = React.memo(function AccrocheLineScroll({
+/* ===== Lettres au scroll (opacité uniquement) ===== */
+function ScrollLetters({
     text,
     progress,
-    align = 'left',
-    fontSize = 'clamp(24px,6vw,64px)',
-    letterSpacing = '0.02em',
-    hardness = 1.0,
-    yOffset = 12,
+    start = 0,
+    end = 1,
+    delayPerChar = 0.02,
+    className = "",
 }: {
-    text: string
-    progress: number
-    align?: 'left' | 'right' | 'center'
-    fontSize?: string
-    letterSpacing?: string
-    hardness?: number
-    yOffset?: number
+    text: string;
+    progress: MotionValue<number>;
+    start?: number;
+    end?: number;
+    delayPerChar?: number;
+    className?: string;
 }) {
-    const chars = React.useMemo(() => Array.from(text), [text]);
-    const n = chars.length;
-
-    const rList = React.useMemo(() => {
-        if (n <= 1) return [1];
-        const LAST_EPS = 0.015;
-        return Array.from({ length: n }, (_, i) =>
-            i === n - 1 ? Math.max(0, 1 - LAST_EPS) : i / (n - 1)
-        );
-    }, [n]);
-
-    const clamp = (t: number) => Math.max(0, Math.min(1, t));
-    const ease = (t: number) => t * t * (3 - 2 * t); // smoothstep
-    const P0 = 0.004, P1 = 0.992;
-    const p = progress <= P0 ? 0 : progress >= P1 ? 1 : (progress - P0) / (P1 - P0);
-
+    const chars = useMemo(() => [...text], [text]);
     return (
-        <h2
-            className="m-0"
-            style={{
-                color: C.taupe,
-                fontSize,
-                letterSpacing,
-                lineHeight: 1.08,
-                textAlign: align,
-                minHeight: '1.1em',
-                ['--accroche-size' as any]: fontSize,
-            }}
-            aria-label={text}
-        >
+        <span className={className} aria-label={text}>
             {chars.map((ch, i) => {
-                const r = rList[i];
-                const a0 = clamp((p - r) / Math.max(1e-6, 1 - r));
-                const a = ease(Math.pow(a0, hardness));
-                const ty = (1 - a) * yOffset;
-                const op = a;
+                const iStart = start + i * delayPerChar;
+                const iEnd = Math.min(end, iStart + 0.12);
+                const o = useTransform(progress, [iStart, iEnd], [0, 1], { clamp: true });
                 return (
-                    <span
-                        key={i}
-                        style={{
-                            display: 'inline-block',
-                            transform: `translate3d(0, ${ty}px, 0)`,
-                            opacity: op,
-                            willChange: op === 0 || op === 1 ? 'auto' : 'transform, opacity',
-                        }}
-                    >
-                        {ch === ' ' ? '\u00A0' : ch}
-                    </span>
+                    <motion.span key={`${text}-${i}`} style={{ display: "inline-block", opacity: o }}>
+                        {ch === " " ? "\u00A0" : ch}
+                    </motion.span>
                 );
             })}
-        </h2>
-    );
-});
-
-/* ──────────────────────────────────────────────────────────────
-   Section simple : Titre + 4 étapes (grille responsive)
-   ────────────────────────────────────────────────────────────── */
-
-function SectionProcess({
-    title = 'Notre processus',
-    steps = [
-        { n: '01', t: 'Écoute', d: 'On clarifie vos envies, votre rythme et vos contraintes.' },
-        { n: '02', t: 'Conception', d: 'Un itinéraire sur-mesure, pensé pour le bon tempo.' },
-        { n: '03', t: 'Organisation', d: 'Transferts, réservations, adresses rares préparées pour vous.' },
-        { n: '04', t: 'Accompagnement', d: 'Avant, pendant, après — vous profitez, on s’occupe du reste.' },
-    ],
-}: {
-    title?: string;
-    steps?: { n: string; t: string; d: string }[];
-}) {
-    return (
-        <section aria-labelledby="process-title" style={{ background: C.blanc, padding: '96px 0 40px' }}>
-            <SafeAreaPad>
-                <Container style={{ textAlign: 'center' }}>
-                    <h2 id="process-title" className="m-0 h2-cuivre">{title}</h2>
-
-                    <div aria-hidden style={{ height: 18 }} />
-
-                    <div role="list" className="steps-grid">
-                        {steps.map((s) => (
-                            <article role="listitem" key={s.n} className="font-sans btn-tap card-step">
-                                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
-                                    <span aria-hidden style={{ fontWeight: 700, letterSpacing: '.08em', color: C.cuivre, fontSize: 14 }}>
-                                        {s.n}
-                                    </span>
-                                    <h3 className="m-0" style={{ color: C.taupe, fontSize: 18, fontWeight: 700, letterSpacing: '.02em' }}>
-                                        {s.t}
-                                    </h3>
-                                </div>
-                                <p className="m-0 text-body" style={{ fontSize: 15.8, lineHeight: 1.6 }}>
-                                    {s.d}
-                                </p>
-                            </article>
-                        ))}
-                    </div>
-                </Container>
-            </SafeAreaPad>
-        </section>
+        </span>
     );
 }
 
-/* ──────────────────────────────────────────────────────────────
-   Page
-   ────────────────────────────────────────────────────────────── */
-
+/* ===== Page ===== */
 export default function Accueil() {
-    const vh = useVH();
-    const heroH = Math.round(Math.max(1, vh));
-    const { y, cover } = useScrollMetrics(heroH);
-    const bp = useBreakpoint(); // prêt si besoin plus tard
-    const prefersReduced = usePrefersReducedMotion();
+    const coverRef = useRef<HTMLElement | null>(null);
+    const { scrollYProgress: p } = useScroll({
+        target: coverRef,
+        offset: ["start start", "end start"],
+    });
 
-    const A = 'Vivez une expérience unique';
-    const B = 'à travers le monde.';
+    // Feuille blanche recouvre l’image
+    const sheetY = useTransform(p, [0, 0.4], ["100%", "0%"]);
+    // Titre brand fade-out
+    const brandOpacity = useTransform(p, [0, 0.16, 0.28], [1, 1, 0]);
 
-    // accroche (position/scénographie)
-    const REVEAL_SPAN = Math.round(heroH * 1.0);
-    const revealP = clamp01(tFrom(y, heroH) / Math.max(1, REVEAL_SPAN));
+    // Amorce : visibilité et progression
+    const hookOpacity = useTransform(p, [0.50, 0.60, 0.965, 0.985], [0, 1, 1, 0], { clamp: true });
+    const hookProgress = useTransform(p, [0.58, 0.965], [0, 1], { clamp: true });
 
-    const abRef = useRef<HTMLDivElement | null>(null);
-    const [accH, setAccH] = useState(0);
+    // Séquençage exact des lignes
+    const line1 = "Vivez une expérience unique";
+    const line2 = "à travers le monde.";
+    const L2_START = 0.62;
+    const L2_END = 0.96;
+    const DELAY = 0.016;
+    const WINDOW = 0.12; // durée d'apparition par lettre
 
-    useIsomorphicLayoutEffect(() => {
-        const measure = () => {
-            if (!abRef.current) return;
-            const r = abRef.current.getBoundingClientRect();
-            setAccH(Math.ceil(r.height));
-        };
-        measure();
-        window.addEventListener('resize', measure);
-        return () => window.removeEventListener('resize', measure);
-    }, [vh]);
+    // Calcul : quand la dernière lettre de la ligne 2 atteint l’opacité 1
+    const line2Len = useMemo(() => [...line2].length, [line2]);
+    const l2LastStart = L2_START + (line2Len - 1) * DELAY;
+    const unlockAt = Math.min(L2_END, l2LastStart + WINDOW); // seuil exact de fin de la 2e ligne
 
-    const GAP_VH = 25;
-    const GAP_PX = (vh * GAP_VH) / 100;
-
-    const startY = Math.max(0, (heroH - accH) / 2);
-    const targetY = -accH - GAP_PX;
-    const DIST = Math.max(1, startY - targetY);
-    const HANDOFF_SPAN = DIST;
-
-    // PRM: si l’utilisateur préfère moins d’animations, on “snap” à la fin
-    const rawHandoff = clamp01((tFrom(y, heroH) - REVEAL_SPAN) / HANDOFF_SPAN);
-    const handoffP = prefersReduced ? 1 : rawHandoff;
-
-    const currentY = startY + handoffP * (targetY - startY);
-    const fadeOutA = prefersReduced ? 0 : 1 - clamp01((handoffP - 0.85) / 0.15);
-    const handoffDone = handoffP >= 0.999;
-    const PAGE_PAD = REVEAL_SPAN + HANDOFF_SPAN;
+    // Scroll lock: actif jusqu’à la fin exacte de la 2e ligne
+    const [locked, setLocked] = useState(true);
+    useMotionValueEvent(hookProgress, "change", (v) => {
+        setLocked(v < unlockAt); // on libère uniquement quand v >= unlockAt
+    });
 
     return (
-        <div className="font-[Cormorant_Garamond]" style={{ color: C.taupe, background: C.blanc, margin: 0, overflowX: 'hidden' }}>
-            <GlobalCSS />
-            <KeyframesStyles />
+        <>
+            <ScrollGate active={locked} />
 
-            {/* espace réservé au HERO */}
-            <div style={{ height: heroH }} />
-
-            {/* HERO fixe */}
-            {!handoffDone && (
-                <div style={{ position: 'fixed', inset: '0 0 auto 0', height: heroH, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }} aria-hidden>
-                    {/* Image héro via <img> pour LCP + décodage */}
-                    <img
-                        src={asset('hero.jpg')}
-                        alt="Paysage immersif — Âme du Monde"
-                        decoding="async"
-                        loading="eager"
-                        style={{
-                            position: 'absolute',
-                            inset: 0,
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            display: 'block',
-                        }}
-                    />
-                    <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
-                        <h1 className="m-0 font-normal tracking-[0.1em]" style={{ color: C.blanc, textShadow: '0 2px 18px rgba(0,0,0,0.35)', fontSize: '8vw' }}>
-                            Âme du Monde
-                        </h1>
+            {/* ===== COVER STAGE ===== */}
+            <section ref={coverRef as any} className="CoverStage">
+                <div className="CoverSticky">
+                    <div className="Cover__bg" aria-hidden>
+                        <img src={asset("hero.jpg")} alt="" />
                     </div>
-                    <div
-                        style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: cover * heroH, background: C.blanc, willChange: prefersReduced ? 'auto' : 'height' }}
-                    />
-                </div>
-            )}
 
-            {/* accroche A/B */}
-            <div style={{ position: 'fixed', inset: 0, zIndex: 3, pointerEvents: 'none', display: revealP >= 0.0 && !handoffDone ? 'block' : 'none' }} aria-hidden>
-                <div ref={abRef} style={{ position: 'absolute', left: 0, right: 0, top: currentY, opacity: fadeOutA, willChange: prefersReduced ? 'auto' : 'top, opacity', transform: 'translateZ(0)' }}>
-                    <Container>
-                        <AccrocheLineScroll text={A} progress={Math.min(1, revealP / 0.6)} align="left" fontSize="clamp(24px,6vw,64px)" letterSpacing="0.02em" hardness={1.0} yOffset={12} />
-                        <div style={{ height: 16 }} />
-                        <AccrocheLineScroll text={B} progress={revealP <= 0.6 ? 0 : Math.min(1, (revealP - 0.6) / 0.4)} align="right" fontSize="clamp(24px,6vw,64px)" letterSpacing="0.02em" hardness={1.0} yOffset={12} />
-                    </Container>
-                </div>
-            </div>
+                    <motion.h1 className="BrandTitle" style={{ opacity: brandOpacity }}>
+                        Âme du Monde
+                    </motion.h1>
 
-            {/* fin accroche */}
-            <div style={{ height: PAGE_PAD }} />
+                    <motion.div className="Cover__sheet" style={{ y: sheetY }} />
 
-            {/* CONTENU */}
-            <div style={{ position: 'relative', zIndex: 2 }}>
-                {/* ========= Notre agence ========= */}
-                <section style={{ maxWidth: 1160, margin: '0 auto', paddingTop: 8, paddingBottom: 16, paddingLeft: 24, paddingRight: 24 }}>
-                    <Container style={{ display: 'flex', alignItems: 'center', gap: 'clamp(24px,4vw,56px)', rowGap: 'clamp(28px,5vw,72px)', flexWrap: 'wrap', marginBottom: 'clamp(28px,6vw,72px)' }}>
-                        <div style={{ flex: '1 1 460px', minWidth: 320, minHeight: 520, display: 'flex', alignItems: 'center', paddingLeft: 0 }}>
-                            <div className="max-ch">
-                                <h2 className="m-0 h2-cuivre">Notre agence</h2>
-                                <p className="mt-3 text-body" style={{ fontSize: 'clamp(20px,1.6vw,22px)' }}>
-                                    Des voyages sur-mesure, conçus pour une expérience unique, alliant authenticité et équilibre subtil.
-                                    Conçus avec soin, nos itinéraires vous laissent la liberté de savourer pleinement chaque moment.
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Image droite (portrait) */}
-                        <div style={{ flex: '0 0 auto', marginLeft: 'auto', marginRight: 0 }}>
-                            <img
-                                src={asset('1.jpg')}
-                                alt="Illustration — Notre agence"
-                                loading="lazy"
-                                decoding="async"
-                                style={{
-                                    width: 'min(420px, 80vw)',
-                                    aspectRatio: '3 / 4',
-                                    objectFit: 'cover',
-                                    display: 'block',
-                                }}
+                    {/* Accroche FIXE (immobile), ligne 1 puis ligne 2, lettres par lettres */}
+                    <motion.div className="Hook" style={{ opacity: hookOpacity }}>
+                        <h2 className="Hook__line ocre">
+                            <ScrollLetters
+                                text={line1}
+                                progress={hookProgress}
+                                start={0.02}
+                                end={0.60}
+                                delayPerChar={DELAY}
                             />
-                        </div>
-                    </Container>
+                        </h2>
+                        <h3 className="Hook__line Hook__line--accent ocre">
+                            <ScrollLetters
+                                text={line2}
+                                progress={hookProgress}
+                                start={L2_START}
+                                end={L2_END}
+                                delayPerChar={DELAY}
+                            />
+                        </h3>
+                    </motion.div>
+                </div>
+            </section>
 
-                    <Container style={{ display: 'flex', gap: 'clamp(24px,5vw,72px)', rowGap: 'clamp(24px,5vw,64px)', alignItems: 'center', flexWrap: 'wrap' }}>
-                        {/* Grand visuel (paysage) */}
-                        <img
-                            src={asset('2.jpg')}
-                            alt="Atmosphère de voyage — Notre agence"
-                            loading="lazy"
-                            decoding="async"
-                            style={{
-                                flex: '1 1 58%',
-                                maxWidth: 680,
-                                width: '100%',
-                                aspectRatio: '16 / 9',
-                                objectFit: 'cover',
-                                display: 'block',
-                            }}
-                        />
-                        <div style={{ flex: '1 1 300px', minWidth: 280, display: 'flex', alignItems: 'center' }}>
-                            <p className="m-0 text-body" style={{ fontSize: 'clamp(20px,1.6vw,22px)', lineHeight: 1.75 }}>
-                                De l’organisation aux rencontres, chaque détail est façonné pour révéler l’authenticité
-                                et créer des souvenirs impérissables.
-                            </p>
-                        </div>
-                    </Container>
-                </section>
+            {/* ===== CONTENU (inchangé) ===== */}
+            <section className="Section Section--agency">
+                <header className="SubTitle">Notre agence</header>
+                <div className="Grid2">
+                    <div className="Col Col--text Col--textOffset">
+                        <p className="Lead Lead--tightRight">
+                            Des voyages sur-mesure, conçus pour une expérience unique, alliant authenticité et équilibre subtil.
+                            Conçus avec soin, nos itinéraires vous laissent la liberté de savourer pleinement chaque moment.
+                        </p>
+                    </div>
+                    <div className="Col Col--img Col--imgNarrow">
+                        <img className="ImgTall" src={asset("1.jpg")} alt="Ambiance — vertical" />
+                    </div>
+                </div>
+            </section>
 
-                {/* ======= SECTION : Titre + 4 étapes ======= */}
-                <SectionProcess />
+            <section className="Section Section--tightTop">
+                <div className="Grid2 Grid2--rev">
+                    <div className="Col Col--img Col--imgWide">
+                        <img className="ImgWide" src={asset("2.jpg")} alt="Rencontres — horizontal" />
+                    </div>
+                    <div className="Col Col--text">
+                        <p className="Lead Lead--tightRight">
+                            De l’organisation aux rencontres, chaque détail est façonné pour révéler l’authenticité et créer des souvenirs impérissables.
+                        </p>
+                    </div>
+                </div>
+            </section>
 
-                {/* ======= PROMESSE ======= */}
-                <section style={{ background: C.blanc, paddingTop: 160, paddingBottom: 110 }}>
-                    <SafeAreaPad>
-                        <div style={{ maxWidth: 860, margin: '0 auto', display: 'grid', placeItems: 'center', textAlign: 'center', padding: '0 16px' }}>
-                            <h2 className="m-0 h2-cuivre" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                Une promesse
-                            </h2>
-                            <div aria-hidden style={{ height: 14 }} />
-                            <p className="text-body" style={{ fontSize: 20, lineHeight: 1.9, maxWidth: 720, margin: '0 auto' }}>
-                                Le vrai luxe ne réside pas dans l’accumulation, mais dans la justesse.
-                                Nous vous promettons des voyages sobres et raffinés, où chaque détail compte,
-                                où chaque moment a sa place. Pas de démesure inutile, seulement la beauté des
-                                lieux, la richesse des cultures, et la liberté de n’avoir rien à gérer.
-                                <br /><br />
-                                <span style={{ color: C.cuivre, fontWeight: 600 }}>
-                                    Notre promesse&nbsp;: vous offrir le privilège de voyager autrement.
-                                </span>
-                            </p>
-                        </div>
-                    </SafeAreaPad>
-                </section>
-
-                {/* ======= BANDEAU FULL-BLEED AVEC IMAGE ======= */}
-                <section aria-hidden style={{ position: 'relative', left: '50%', transform: 'translateX(-50%)', width: '100vw', boxShadow: '0 0 0 1px transparent' }}>
-                    <img
-                        src={asset('3.jpg')}
-                        alt="Panorama inspirant"
-                        loading="lazy"
-                        decoding="async"
-                        style={{
-                            width: '100%',
-                            height: 'min(50vh, 560px)',
-                            minHeight: '36vh',
-                            objectFit: 'cover',
-                            display: 'block',
-                        }}
-                    />
-                </section>
-
-                {/* ======= CONTACT ======= */}
-                <section style={{ background: C.blanc, paddingTop: 220, paddingBottom: 120 }}>
-                    <SafeAreaPad>
-                        <div style={{ maxWidth: 920, margin: '0 auto', display: 'grid', placeItems: 'center', textAlign: 'center', padding: '0 16px' }}>
-                            <h2 className="m-0 h2-cuivre">Votre prochaine évasion commence ici</h2>
-
-                            <p className="text-body" style={{ fontSize: 18, lineHeight: 1.8, maxWidth: 680, margin: '12px auto 0' }}>
-                                Laissez-nous transformer vos envies en un voyage unique, sculpté selon vos envies.
-                            </p>
-
-                            <div style={{ marginTop: 32 }}>
-                                <a
-                                    href="#/contact"
-                                    className="font-sans text-[15px] btn-tap"
-                                    aria-label="Commencer l’aventure — section contact"
-                                    style={{
-                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                        padding: '16px 22px', minHeight: 44, borderRadius: 14,
-                                        border: `1px solid ${C.taupe}`, background: C.cuivre, color: C.blanc,
-                                        textDecoration: 'none', fontWeight: 500,
-                                        transition: 'transform .15s ease, box-shadow .15s ease, opacity .15s ease',
-                                    }}
-                                    onMouseDown={e => {
-                                        if (window.matchMedia('(hover: hover)').matches) {
-                                            const el = e.currentTarget as HTMLAnchorElement;
-                                            el.style.transform = 'translateY(1px)';
-                                            el.style.opacity = '0.95';
-                                        }
-                                    }}
-                                    onMouseUp={e => {
-                                        const el = e.currentTarget as HTMLAnchorElement;
-                                        el.style.transform = '';
-                                        el.style.opacity = '1';
-                                    }}
-                                >
-                                    Commencer l’aventure
-                                </a>
+            <section className="Section">
+                <header className="SubTitle">Notre processus</header>
+                <ol className="Steps">
+                    {[
+                        ["01", "Écoute & intention", "On part de vos envies profondes, vos rythmes et vos limites pour cadrer l’essentiel."],
+                        ["02", "Conception sur-mesure", "Un itinéraire finement ajusté : équilibre, fluidité, temps pour soi."],
+                        ["03", "Orchestration", "Logistique maîtrisée, partenaires triés, détails réglés — pour voyager l’esprit libre."],
+                        ["04", "Suivi & délicatesse", "Nous restons présents, avec tact : ajustements, attentions, sérénité jusqu’au retour."],
+                    ].map(([n, t, d]) => (
+                        <li className="Step" key={n}>
+                            <span className="Step__num">{n}</span>
+                            <div className="Step__body">
+                                <h3 className="Step__title">{t}</h3>
+                                <p className="Step__text">{d}</p>
                             </div>
-                        </div>
-                    </SafeAreaPad>
-                </section>
-            </div>
+                        </li>
+                    ))}
+                </ol>
+            </section>
 
-            {/* air en bas */}
-            <div style={{ height: Math.round(vh * 0.1) }} />
-        </div>
-    );
+            <section className="Section Section--promise">
+                <header className="SubTitle">Une promesse</header>
+                <div className="Prose Prose--center">
+                    <p>
+                        Le vrai luxe ne réside pas dans l’accumulation, mais dans la justesse. Nous vous promettons des voyages sobres et raffinés,
+                        où chaque détail compte, où chaque moment a sa place. Pas de démesure inutile, seulement la beauté des lieux, la richesse des cultures,
+                        et la liberté de n’avoir rien à gérer.
+                    </p>
+                    <p className="Promise">Notre promesse&nbsp;: vous offrir le privilège de voyager autrement.</p>
+                </div>
+            </section>
+
+            <section className="WideImageFull" aria-label="Inspiration visuelle">
+                <img src={asset("3.jpg")} alt="" />
+            </section>
+
+            <section className="Section Section--cta">
+                <h2 className="CTA__title CTA__title--ocre">Votre prochaine évasion commence ici</h2>
+                <p className="CTA__text">Laissez-nous transformer vos envies en un voyage unique, sculpté selon vos envies.</p>
+                <a href="#contact" className="CTA__btn">Commencer l’aventure</a>
+            </section>
+
+            <style>{`
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600&display=swap');
+
+:root{ --c-sable:${C.sable}; --c-taupe:${C.taupe}; --c-ocre:${C.ocre}; --c-blanc:${C.blanc}; --c-noir:${C.noir}; }
+*{box-sizing:border-box}
+html,body,#root{height:100%}
+body{
+  margin:0; color:var(--c-sable); background:var(--c-blanc);
+  font-family: "Source Sans 3", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  font-weight: 300; line-height:1.6;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+h1,h2,h3,.BrandTitle,.Hook__line,.SubTitle{
+  font-family:"EB Garamond", Georgia, serif; font-weight: 400; letter-spacing: 0.004em;
 }
 
-/** helper */
-function tFrom(y: number, heroH: number) {
-    const introOrigin = heroH;
-    return Math.max(0, y - introOrigin);
+/* ===== COVER ===== */
+.CoverStage{ height: 320vh; position: relative; }
+.CoverSticky{ position: sticky; top: 0; min-height: 100vh; isolation: isolate; overflow: hidden; }
+.Cover__bg{ position:absolute; inset:0; z-index:-2; }
+.Cover__bg img{ width:100%; height:100%; object-fit:cover; object-position:center; display:block; }
+.BrandTitle{
+  position:absolute; inset:0; display:grid; place-items:center; z-index:0;
+  margin:0; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.33);
+  letter-spacing:.045em; font-weight:400; font-size:clamp(34px, 6.6vw, 92px);
+}
+.Cover__sheet{ position:absolute; inset:0; background:var(--c-blanc); z-index:1; will-change:transform; }
+
+/* Accroche FIXE (immobile) */
+.Hook{
+  position: fixed; inset: 0;
+  display: grid; place-items: center;
+  z-index: 5; pointer-events: none;
+  text-align: center; padding: 2rem;
+}
+.Hook__line{
+  margin:0; font-weight:400; letter-spacing:.002em;
+  font-size: clamp(26px, 4.3vw, 56px);
+  line-height: 1.08;
+}
+.Hook__line + .Hook__line{ margin-top:.06rem; }
+.Hook__line--accent{ font-weight:400; }
+.ocre{ color: var(--c-ocre); }
+
+/* ===== Sections ===== */
+.Section{ position:relative; background:var(--c-blanc);
+          padding:clamp(48px,8vw,96px) clamp(20px,6vw,80px); }
+.Section--tightTop{ padding-top:clamp(28px,5vw,56px); }
+.SubTitle{ font-size:clamp(20px,2.3vw,25px); font-weight:500; color: var(--c-ocre); margin-bottom:clamp(12px,2.2vw,18px); }
+
+.Grid2{ display:grid; grid-template-columns:1fr; gap:clamp(18px,3vw,28px); align-items:start; }
+@media(min-width:980px){ .Grid2{ grid-template-columns:1.05fr .95fr; gap:clamp(24px,4vw,40px); }
+                          .Grid2--rev{ grid-template-columns:.95fr 1.05fr; } }
+
+.Col--text .Lead{ font-size:clamp(16px,1.7vw,19px); color:var(--c-sable); max-width:64ch; }
+.Lead--tightRight{ max-width:48ch; line-height:1.52; margin-left:auto; }
+
+.Section--agency .SubTitle{ margin-top:clamp(18px,4vw,60px); }
+.Section--agency .Col--textOffset{ margin-top:clamp(12px,4vw,50px); }
+
+.Col--img img{ width:100%; height:auto; display:block; }
+.Col--imgNarrow .ImgTall{ width:76%; max-height:78vh; object-fit:cover; margin-left:auto; }
+.Col--imgWide{ overflow:hidden; }
+.Col--imgWide .ImgWide{ width:130%; max-width:none; transform:translateX(-15%); object-fit:cover; }
+
+.Steps{ list-style:none; margin:0; padding:0; display:grid; gap:18px; }
+@media(min-width:880px){ .Steps{ grid-template-columns:repeat(4,1fr); gap:22px; } }
+.Step{ background:#fff; border:1px solid rgba(27,18,11,.08); border-radius:10px; padding:18px; min-height:160px;
+       display:flex; gap:14px; align-items:flex-start; }
+.Step__num{ font-variant-numeric:tabular-nums; font-weight:600; color:var(--c-ocre); min-width:2.6ch; }
+.Step__title{ margin:2px 0 6px 0; font-size:16px; color:var(--c-taupe); font-family:"EB Garamond", Georgia, serif; font-weight:400; }
+.Step__text{ margin:0; font-size:14.5px; color:#4b3b30; font-weight:300; }
+
+.Section--promise{ text-align:center; }
+.Prose{ max-width:72ch; font-size:17px; color:var(--c-sable); margin:0; }
+.Prose p{ margin:0 0 1rem 0; }
+.Prose--center{ margin:0 auto; }
+.Promise{ font-weight:500; color:var(--c-taupe); }
+
+.WideImageFull{ padding:0; margin:0; }
+.WideImageFull img{ display:block; width:100%; height:auto; }
+
+.Section--cta{ text-align:center; }
+.CTA__title{ margin:0 0 8px 0; font-size:clamp(22px,3.6vw,34px); font-weight:500; color:var(--c-taupe); }
+.CTA__title--ocre{ color: var(--c-ocre); }
+.CTA__text{ margin:0 auto 22px auto; font-size:16.5px; color:#3e2f25; max-width:62ch; }
+.CTA__btn{ display:inline-block; padding:12px 20px; border-radius:999px; background:var(--c-taupe); color:#fff; text-decoration:none;
+           transition:transform .2s ease, opacity .2s ease; }
+.CTA__btn:hover{ transform:translateY(-1px); }
+.CTA__btn:active{ transform:translateY(0); opacity:.92; }
+      `}</style>
+        </>
+    );
 }
