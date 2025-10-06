@@ -61,9 +61,10 @@ function Container({ children, style }: { children: React.ReactNode; style?: Rea
     return <div className="container" style={style}>{children}</div>;
 }
 
-function MobileGlobalCSS() {
+function GlobalCSS() {
     return (
         <style>{`
+      :root { color-scheme: only light; }
       /* typographie & layout responsive */
       @media (max-width: 480px) { html { font-size: 17px; } }
       .bg-cover-center { background-size: cover; background-position: center; image-rendering: auto; }
@@ -78,28 +79,37 @@ function MobileGlobalCSS() {
       .m-0 { margin: 0; }
       .font-sans { font-family: system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji'; }
 
-      /* Steps cards (hover pur CSS) */
-      .card-step{
-        background: rgba(90,51,23,0.04);
-        border: 1px solid rgba(90,51,23,0.12);
-        border-radius: 14px;
-        padding: 18px 16px;
-        text-align: left;
-      }
+      /* Utilitaires typo */
+      .h2-cuivre { color: ${C.cuivre}; font-size: clamp(28px,3vw,36px); letter-spacing: .02em; font-weight: 600; }
+      .text-body { font-family: system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial; line-height: 1.7; color: rgba(90,51,23,.95); }
+      .max-ch { max-width: 65ch; }
+
+      /* Focus visible cohérent */
+      a:focus-visible, .btn-tap:focus-visible { outline: 2px solid ${C.cuivre}; outline-offset: 3px; border-radius: 12px; }
+      @media (hover:hover){ a.btn-tap:hover{ box-shadow: 0 8px 24px rgba(0,0,0,.08); } }
+
+      /* Steps cards */
+      .steps-grid{ display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: clamp(14px, 2.5vw, 28px); }
+      .card-step{ background: rgba(90,51,23,0.04); border: 1px solid rgba(90,51,23,0.12); border-radius: 14px; padding: 18px 16px; text-align: left; }
       @media (hover:hover){
-        .card-step{
-          transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease;
-        }
-        .card-step:hover{
-          transform: translateY(-2px);
-          box-shadow: 0 6px 18px rgba(0,0,0,.06);
-        }
+        .card-step{ transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease; }
+        .card-step:hover{ transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.06); }
       }
 
       /* boutons sur mobile */
       @media (hover: none) {
         .btn-tap { transition: opacity .15s ease; }
         .btn-tap:active { opacity: .85; transform: none !important; }
+      }
+
+      /* Responsive paliers grille */
+      @media (max-width: 1024px){ .steps-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+      @media (max-width: 680px){  .steps-grid { grid-template-columns: 1fr; } }
+
+      /* Contraste accru si demandé */
+      @media (prefers-contrast: more){
+        .card-step{ border-color: rgba(90,51,23,.28); }
+        a.btn-tap{ box-shadow: inset 0 0 0 2px ${C.cuivre}; }
       }
     `}</style>
     );
@@ -158,7 +168,7 @@ function useScrollMetrics(heroH: number) {
    Accroche (révélation lettre par lettre + scroll-réactif)
    ────────────────────────────────────────────────────────────── */
 
-function GlobalStyles() {
+function KeyframesStyles() {
     return (
         <style>{`
       @keyframes accroche-reveal { to { opacity: 1; transform: translateY(0); } }
@@ -261,32 +271,22 @@ function SectionProcess({
         <section aria-labelledby="process-title" style={{ background: C.blanc, padding: '96px 0 40px' }}>
             <SafeAreaPad>
                 <Container style={{ textAlign: 'center' }}>
-                    <h2 id="process-title"
-                        className="m-0"
-                        style={{ color: C.cuivre, fontSize: 'clamp(28px,3vw,36px)', letterSpacing: '.02em', fontWeight: 600 }}>
-                        {title}
-                    </h2>
+                    <h2 id="process-title" className="m-0 h2-cuivre">{title}</h2>
 
                     <div aria-hidden style={{ height: 18 }} />
 
-                    <div role="list" className="steps-grid" style={{
-                        margin: '24px auto 0',
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(4, minmax(0,1fr))',
-                        gap: 'clamp(16px,3vw,28px)',
-                    }}>
+                    <div role="list" className="steps-grid">
                         {steps.map((s) => (
                             <article role="listitem" key={s.n} className="font-sans btn-tap card-step">
                                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
-                                    <span aria-hidden
-                                        style={{ fontWeight: 700, letterSpacing: '.08em', color: C.cuivre, fontSize: 14 }}>
+                                    <span aria-hidden style={{ fontWeight: 700, letterSpacing: '.08em', color: C.cuivre, fontSize: 14 }}>
                                         {s.n}
                                     </span>
                                     <h3 className="m-0" style={{ color: C.taupe, fontSize: 18, fontWeight: 700, letterSpacing: '.02em' }}>
                                         {s.t}
                                     </h3>
                                 </div>
-                                <p className="m-0" style={{ color: 'rgba(90,51,23,.92)', fontSize: 15.8, lineHeight: 1.6 }}>
+                                <p className="m-0 text-body" style={{ fontSize: 15.8, lineHeight: 1.6 }}>
                                     {s.d}
                                 </p>
                             </article>
@@ -294,16 +294,6 @@ function SectionProcess({
                     </div>
                 </Container>
             </SafeAreaPad>
-
-            {/* responsive */}
-            <style>{`
-        @media (max-width: 1024px) {
-          .steps-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        }
-        @media (max-width: 520px) {
-          .steps-grid { grid-template-columns: 1fr; }
-        }
-      `}</style>
         </section>
     );
 }
@@ -316,7 +306,7 @@ export default function Accueil() {
     const vh = useVH();
     const heroH = Math.round(Math.max(1, vh));
     const { y, cover } = useScrollMetrics(heroH);
-    const bp = useBreakpoint();
+    const bp = useBreakpoint(); // prêt si besoin plus tard
     const prefersReduced = usePrefersReducedMotion();
 
     const A = 'Vivez une expérience unique';
@@ -359,21 +349,29 @@ export default function Accueil() {
 
     return (
         <div className="font-[Cormorant_Garamond]" style={{ color: C.taupe, background: C.blanc, margin: 0, overflowX: 'hidden' }}>
-            <GlobalStyles />
-            <MobileGlobalCSS />
+            <GlobalCSS />
+            <KeyframesStyles />
 
             {/* espace réservé au HERO */}
             <div style={{ height: heroH }} />
 
             {/* HERO fixe */}
             {!handoffDone && (
-                <div
-                    style={{ position: 'fixed', inset: '0 0 auto 0', height: heroH, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}
-                    aria-hidden
-                >
-                    <div
-                        className="bg-cover-center"
-                        style={{ position: 'absolute', inset: 0, backgroundImage: `url(${asset('hero.jpg')})` }}
+                <div style={{ position: 'fixed', inset: '0 0 auto 0', height: heroH, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }} aria-hidden>
+                    {/* Image héro via <img> pour LCP + décodage */}
+                    <img
+                        src={asset('hero.jpg')}
+                        alt="Paysage immersif — Âme du Monde"
+                        decoding="async"
+                        loading="eager"
+                        style={{
+                            position: 'absolute',
+                            inset: 0,
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            display: 'block',
+                        }}
                     />
                     <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
                         <h1 className="m-0 font-normal tracking-[0.1em]" style={{ color: C.blanc, textShadow: '0 2px 18px rgba(0,0,0,0.35)', fontSize: '8vw' }}>
@@ -381,46 +379,18 @@ export default function Accueil() {
                         </h1>
                     </div>
                     <div
-                        style={{
-                            position: 'absolute',
-                            left: 0, right: 0, bottom: 0,
-                            height: cover * heroH,
-                            background: C.blanc,
-                            willChange: prefersReduced ? 'auto' : 'height',
-                        }}
+                        style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: cover * heroH, background: C.blanc, willChange: prefersReduced ? 'auto' : 'height' }}
                     />
                 </div>
             )}
 
             {/* accroche A/B */}
-            <div
-                style={{ position: 'fixed', inset: 0, zIndex: 3, pointerEvents: 'none', display: revealP >= 0.0 && !handoffDone ? 'block' : 'none' }}
-                aria-hidden
-            >
-                <div
-                    ref={abRef}
-                    style={{ position: 'absolute', left: 0, right: 0, top: currentY, opacity: fadeOutA, willChange: prefersReduced ? 'auto' : 'top, opacity', transform: 'translateZ(0)' }}
-                >
+            <div style={{ position: 'fixed', inset: 0, zIndex: 3, pointerEvents: 'none', display: revealP >= 0.0 && !handoffDone ? 'block' : 'none' }} aria-hidden>
+                <div ref={abRef} style={{ position: 'absolute', left: 0, right: 0, top: currentY, opacity: fadeOutA, willChange: prefersReduced ? 'auto' : 'top, opacity', transform: 'translateZ(0)' }}>
                     <Container>
-                        <AccrocheLineScroll
-                            text={A}
-                            progress={Math.min(1, revealP / 0.6)}
-                            align="left"
-                            fontSize="clamp(24px,6vw,64px)"
-                            letterSpacing="0.02em"
-                            hardness={1.0}
-                            yOffset={12}
-                        />
+                        <AccrocheLineScroll text={A} progress={Math.min(1, revealP / 0.6)} align="left" fontSize="clamp(24px,6vw,64px)" letterSpacing="0.02em" hardness={1.0} yOffset={12} />
                         <div style={{ height: 16 }} />
-                        <AccrocheLineScroll
-                            text={B}
-                            progress={revealP <= 0.6 ? 0 : Math.min(1, (revealP - 0.6) / 0.4)}
-                            align="right"
-                            fontSize="clamp(24px,6vw,64px)"
-                            letterSpacing="0.02em"
-                            hardness={1.0}
-                            yOffset={12}
-                        />
+                        <AccrocheLineScroll text={B} progress={revealP <= 0.6 ? 0 : Math.min(1, (revealP - 0.6) / 0.4)} align="right" fontSize="clamp(24px,6vw,64px)" letterSpacing="0.02em" hardness={1.0} yOffset={12} />
                     </Container>
                 </div>
             </div>
@@ -434,11 +404,9 @@ export default function Accueil() {
                 <section style={{ maxWidth: 1160, margin: '0 auto', paddingTop: 8, paddingBottom: 16, paddingLeft: 24, paddingRight: 24 }}>
                     <Container style={{ display: 'flex', alignItems: 'center', gap: 'clamp(24px,4vw,56px)', rowGap: 'clamp(28px,5vw,72px)', flexWrap: 'wrap', marginBottom: 'clamp(28px,6vw,72px)' }}>
                         <div style={{ flex: '1 1 460px', minWidth: 320, minHeight: 520, display: 'flex', alignItems: 'center', paddingLeft: 0 }}>
-                            <div style={{ maxWidth: '56ch' }}>
-                                <h2 className="m-0" style={{ color: C.cuivre, fontSize: 'clamp(38px,3.6vw,52px)', letterSpacing: '.02em' }}>
-                                    Notre agence
-                                </h2>
-                                <p className="mt-3 font-sans" style={{ fontSize: 'clamp(20px,1.6vw,22px)', lineHeight: 1.7, color: 'rgba(90,51,23,.95)' }}>
+                            <div className="max-ch">
+                                <h2 className="m-0 h2-cuivre">Notre agence</h2>
+                                <p className="mt-3 text-body" style={{ fontSize: 'clamp(20px,1.6vw,22px)' }}>
                                     Des voyages sur-mesure, conçus pour une expérience unique, alliant authenticité et équilibre subtil.
                                     Conçus avec soin, nos itinéraires vous laissent la liberté de savourer pleinement chaque moment.
                                 </p>
@@ -447,16 +415,16 @@ export default function Accueil() {
 
                         {/* Image droite (portrait) */}
                         <div style={{ flex: '0 0 auto', marginLeft: 'auto', marginRight: 0 }}>
-                            <div
-                                aria-hidden
-                                role="img"
-                                aria-label="Illustration — Notre agence"
-                                className="bg-cover-center"
+                            <img
+                                src={asset('1.jpg')}
+                                alt="Illustration — Notre agence"
+                                loading="lazy"
+                                decoding="async"
                                 style={{
                                     width: 'min(420px, 80vw)',
                                     aspectRatio: '3 / 4',
-                                    borderRadius: 0,
-                                    backgroundImage: `url(${asset('1.jpg')})`,
+                                    objectFit: 'cover',
+                                    display: 'block',
                                 }}
                             />
                         </div>
@@ -464,22 +432,22 @@ export default function Accueil() {
 
                     <Container style={{ display: 'flex', gap: 'clamp(24px,5vw,72px)', rowGap: 'clamp(24px,5vw,64px)', alignItems: 'center', flexWrap: 'wrap' }}>
                         {/* Grand visuel (paysage) */}
-                        <div
-                            aria-hidden
-                            role="img"
-                            aria-label="Atmosphère de voyage — Notre agence"
-                            className="bg-cover-center"
+                        <img
+                            src={asset('2.jpg')}
+                            alt="Atmosphère de voyage — Notre agence"
+                            loading="lazy"
+                            decoding="async"
                             style={{
                                 flex: '1 1 58%',
                                 maxWidth: 680,
                                 width: '100%',
                                 aspectRatio: '16 / 9',
-                                borderRadius: 0,
-                                backgroundImage: `url(${asset('2.jpg')})`,
+                                objectFit: 'cover',
+                                display: 'block',
                             }}
                         />
                         <div style={{ flex: '1 1 300px', minWidth: 280, display: 'flex', alignItems: 'center' }}>
-                            <p className="m-0 font-sans" style={{ fontSize: 'clamp(20px,1.6vw,22px)', lineHeight: 1.75, color: 'rgba(90,51,23,.95)' }}>
+                            <p className="m-0 text-body" style={{ fontSize: 'clamp(20px,1.6vw,22px)', lineHeight: 1.75 }}>
                                 De l’organisation aux rencontres, chaque détail est façonné pour révéler l’authenticité
                                 et créer des souvenirs impérissables.
                             </p>
@@ -494,11 +462,11 @@ export default function Accueil() {
                 <section style={{ background: C.blanc, paddingTop: 160, paddingBottom: 110 }}>
                     <SafeAreaPad>
                         <div style={{ maxWidth: 860, margin: '0 auto', display: 'grid', placeItems: 'center', textAlign: 'center', padding: '0 16px' }}>
-                            <h2 className="m-0" style={{ fontSize: 32, fontWeight: 600, color: C.cuivre, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            <h2 className="m-0 h2-cuivre" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                 Une promesse
                             </h2>
                             <div aria-hidden style={{ height: 14 }} />
-                            <p className="font-sans" style={{ fontSize: 20, lineHeight: 1.9, color: 'rgba(90,51,23,.95)', maxWidth: 720, margin: '0 auto' }}>
+                            <p className="text-body" style={{ fontSize: 20, lineHeight: 1.9, maxWidth: 720, margin: '0 auto' }}>
                                 Le vrai luxe ne réside pas dans l’accumulation, mais dans la justesse.
                                 Nous vous promettons des voyages sobres et raffinés, où chaque détail compte,
                                 où chaque moment a sa place. Pas de démesure inutile, seulement la beauté des
@@ -513,37 +481,37 @@ export default function Accueil() {
                 </section>
 
                 {/* ======= BANDEAU FULL-BLEED AVEC IMAGE ======= */}
-                <section
-                    aria-hidden
-                    className="bg-cover-center"
-                    style={{
-                        position: 'relative',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        width: '100vw',
-                        height: 'min(50vh, 560px)',
-                        minHeight: '36vh',
-                        backgroundImage: `url(${asset('3.jpg')})`,
-                        boxShadow: '0 0 0 1px transparent',
-                    }}
-                />
+                <section aria-hidden style={{ position: 'relative', left: '50%', transform: 'translateX(-50%)', width: '100vw', boxShadow: '0 0 0 1px transparent' }}>
+                    <img
+                        src={asset('3.jpg')}
+                        alt="Panorama inspirant"
+                        loading="lazy"
+                        decoding="async"
+                        style={{
+                            width: '100%',
+                            height: 'min(50vh, 560px)',
+                            minHeight: '36vh',
+                            objectFit: 'cover',
+                            display: 'block',
+                        }}
+                    />
+                </section>
 
                 {/* ======= CONTACT ======= */}
                 <section style={{ background: C.blanc, paddingTop: 220, paddingBottom: 120 }}>
                     <SafeAreaPad>
                         <div style={{ maxWidth: 920, margin: '0 auto', display: 'grid', placeItems: 'center', textAlign: 'center', padding: '0 16px' }}>
-                            <h2 className="m-0" style={{ fontSize: 'clamp(28px,3vw,36px)', color: C.cuivre, fontWeight: 600, letterSpacing: '0.02em' }}>
-                                Votre prochaine évasion commence ici
-                            </h2>
+                            <h2 className="m-0 h2-cuivre">Votre prochaine évasion commence ici</h2>
 
-                            <p className="font-sans" style={{ fontSize: 18, lineHeight: 1.8, color: 'rgba(90,51,23,.95)', maxWidth: 680, margin: '12px auto 0' }}>
+                            <p className="text-body" style={{ fontSize: 18, lineHeight: 1.8, maxWidth: 680, margin: '12px auto 0' }}>
                                 Laissez-nous transformer vos envies en un voyage unique, sculpté selon vos envies.
                             </p>
 
-                            <div style={{ marginTop: 28 }}>
+                            <div style={{ marginTop: 32 }}>
                                 <a
                                     href="#/contact"
                                     className="font-sans text-[15px] btn-tap"
+                                    aria-label="Commencer l’aventure — section contact"
                                     style={{
                                         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                                         padding: '16px 22px', minHeight: 44, borderRadius: 14,
