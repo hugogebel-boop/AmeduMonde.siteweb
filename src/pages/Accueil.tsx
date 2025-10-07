@@ -94,7 +94,7 @@ export default function Accueil() {
     const REVEAL_WINDOW = 0.7;
     const reveal = useTransform<number, number>(stage, [0, REVEAL_WINDOW], [0, 1], { clamp: true });
 
-    const phrase = "Vivez une expérience unique à travers le monde.                                                ";
+    const phrase = "Vivez une expérience unique à travers le monde.---------------------------------";
 
     // ===== Découpage par mots (empêche toute césure au milieu d’un mot) =====
     const words = useMemo(() => phrase.trim().split(/\s+/), [phrase]);
@@ -556,6 +556,7 @@ function Letter({
     char: string;
 }) {
     const isSpace = char === " ";
+    const isHyphen = char === "-" || char === "–" || char === "—";
     const opacity = useTransform<number, number>(revealedCount, (n) => (index < n ? 1 : 0));
 
     if (isSpace) {
@@ -565,14 +566,14 @@ function Letter({
             </span>
         );
     }
-
     return (
         <motion.span
             style={{
                 display: "inline",
                 opacity,
                 willChange: "opacity",
-                color: C.taupe,
+                /* Amorce: texte en ocre, mais tirets invisibles (blanc) */
+                color: isHyphen ? C.blanc : C.ocre,
             }}
         >
             {char}
