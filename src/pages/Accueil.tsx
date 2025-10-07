@@ -42,6 +42,18 @@ const h3Style: React.CSSProperties = {
 };
 
 export default function Accueil() {
+    /* ── Règles CSS ciblées (anti-césure mots + 3.jpg mobile plus haut) ── */
+    const css = `
+  .amorce-title{
+    hyphens:none; -webkit-hyphens:none; -ms-hyphens:none;
+    overflow-wrap:normal; word-break:keep-all;
+  }
+  .amorce-title span.word{ white-space:nowrap; } /* jamais de coupure intra-mot */
+  @media (max-width: 640px){
+    .banner3{ height:min(28vh, 460px) !important; } /* 3.jpg : un poil plus haut en mobile */
+  }
+  `;
+
     /* ── Flèche du hero ─────────────────────────────────────────── */
     const { scrollY } = useScroll();
     const arrowOpacity = useTransform<number, number>(scrollY, [0, 100], [1, 0]);
@@ -58,10 +70,8 @@ export default function Accueil() {
 
     const phrase = "Vivez une expérience unique à travers le monde.";
 
-    // ===== Découpage par mots pour empêcher les sauts au milieu d’un mot =====
+    // ===== Découpage par mots (empêche toute césure au milieu d’un mot) =====
     const words = useMemo(() => phrase.trim().split(/\s+/), [phrase]);
-
-    // Longueur totale (lettres + espaces simples entre mots)
     const L = useMemo(() => words.join(" ").length, [words]);
 
     const revealedCount: MotionValue<number> = prefersReduced
@@ -96,7 +106,6 @@ export default function Accueil() {
 
     /* ── Scroll vers le haut sur navigation (contact + footer) ───────────────── */
     useEffect(() => {
-        // Force la page courante à scroller en haut lors d’un changement d’ancre/hash
         const toTop = () => window.scrollTo({ top: 0, behavior: "auto" });
         window.addEventListener("hashchange", toTop, { passive: true });
         window.addEventListener("popstate", toTop, { passive: true });
@@ -108,6 +117,8 @@ export default function Accueil() {
 
     return (
         <div style={{ position: "relative", isolation: "isolate" }}>
+            <style>{css}</style>
+
             {/* ===== HERO FIXE ===== */}
             <div
                 aria-hidden
@@ -137,9 +148,7 @@ export default function Accueil() {
                 <div
                     style={{
                         position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
+                        top: 0, left: 0, right: 0,
                         height: 80,
                         background: "linear-gradient(to bottom, rgba(27,18,11,0.6), rgba(27,18,11,0))",
                         pointerEvents: "none",
@@ -192,10 +201,7 @@ export default function Accueil() {
                         }}
                     >
                         <motion.svg
-                            width="28"
-                            height="28"
-                            viewBox="0 0 24 24"
-                            fill="none"
+                            width="28" height="28" viewBox="0 0 24 24" fill="none"
                             xmlns="http://www.w3.org/2000/svg"
                             style={{ stroke: C.blanc, strokeWidth: 1 }}
                             initial={prefersReduced ? false : { y: 0 }}
@@ -211,7 +217,7 @@ export default function Accueil() {
             {/* Spacer plein écran */}
             <div style={{ height: "100vh", position: "relative", zIndex: 1 }} />
 
-            {/* ===== AMORCE STICKY (wrap par mots, jamais en milieu de mot) ===== */}
+            {/* ===== AMORCE STICKY (jamais coupée au milieu d’un mot) ===== */}
             <section
                 ref={stageRef}
                 style={{ position: "relative", zIndex: 2, background: C.blanc, color: C.taupe, minHeight: "170vh" }}
@@ -228,14 +234,11 @@ export default function Accueil() {
                     }}
                 >
                     <motion.h2
+                        className="amorce-title"
                         aria-label={phrase}
                         style={{
                             fontFamily: "'Cormorant Garamond', serif",
                             fontWeight: 300,
-                            // 👇 Empêche toute césure dans les mots
-                            whiteSpace: "normal",
-                            overflowWrap: "normal",
-                            wordBreak: "keep-all",
                             textAlign: "center",
                             maxWidth: "min(92vw, 980px)",
                             fontSize: "clamp(22px, 6.2vw, 60px)",
@@ -291,7 +294,7 @@ export default function Accueil() {
                             </p>
                         </div>
 
-                        {/* Bloc 2 — Texte étroit à gauche, 2.jpg à droite, plus "plat" (moins haut) */}
+                        {/* Bloc 2 — Texte étroit à gauche, 2.jpg à droite */}
                         <div
                             style={{
                                 display: "flex",
@@ -304,7 +307,7 @@ export default function Accueil() {
                                 style={{
                                     ...bodyText,
                                     flex: "0 1 360px",
-                                    maxWidth: 420, // ✅ plus étroit
+                                    maxWidth: 420,
                                     padding: "0 12px 0 0",
                                     margin: 0,
                                     order: 0,
@@ -322,7 +325,7 @@ export default function Accueil() {
                                     flex: "1 1 60%",
                                     borderRadius: 0,
                                     objectFit: "cover",
-                                    aspectRatio: "16 / 9", // ✅ même largeur perçue, moins de hauteur
+                                    aspectRatio: "16 / 9",
                                     order: 1,
                                 }}
                                 loading="lazy"
@@ -359,9 +362,9 @@ export default function Accueil() {
                 </p>
             </section>
 
-            {/* ===== Notre approche — design plus fluide/élégant ===== */}
+            {/* ===== Notre approche — + d'espace bas pour séparer de 3.jpg ===== */}
             <section style={{ position: "relative", zIndex: 2, background: C.blanc }}>
-                <div style={{ maxWidth: 1180, margin: "0 auto", padding: "84px 24px 44px" }}>
+                <div style={{ maxWidth: 1180, margin: "0 auto", padding: "84px 24px 96px" }}>
                     <h3 style={h3Style}>Notre approche</h3>
 
                     <p style={{ ...bodyText, maxWidth: 820, marginBottom: 36 }}>
@@ -415,7 +418,7 @@ export default function Accueil() {
                                         fontWeight: 300,
                                         fontSize: 22,
                                         letterSpacing: "0.01em",
-                                        color: C.ocre, // ✅ sous-titres en ocre
+                                        color: C.ocre,
                                     }}
                                 >
                                     {b.title}
@@ -427,14 +430,15 @@ export default function Accueil() {
                 </div>
             </section>
 
-            {/* ===== 3.jpg bandeau fin ===== */}
-            <section style={{ position: "relative", zIndex: 2, background: C.blanc }}>
+            {/* ===== 3.jpg bandeau fin (avec marge-top + hauteur mobile ajustée) ===== */}
+            <section style={{ position: "relative", zIndex: 2, background: C.blanc, marginTop: 12 }}>
                 <img
+                    className="banner3"
                     src={asset("/3.jpg")}
                     alt=""
                     style={{
                         width: "100%",
-                        height: "clamp(90px, 18vw, 420px)",
+                        height: "clamp(110px, 18vw, 420px)", // desktop identique, mobile override via CSS ci-dessus
                         objectFit: "cover",
                         display: "block",
                         borderRadius: 0,
@@ -454,7 +458,6 @@ export default function Accueil() {
                     <a
                         href="/AmeduMonde.siteweb/#/contact"
                         onClick={() => {
-                            // ✅ garantit l’arrivée en haut de la page contact
                             requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
                         }}
                         style={{
@@ -502,7 +505,6 @@ export default function Accueil() {
 function Words({ phrase, revealedCount }: { phrase: string; revealedCount: MotionValue<number> }) {
     const words = phrase.trim().split(/\s+/);
 
-    // Calcul de l'index global des lettres (avec un espace simple entre mots)
     let cursor = 0;
     const nodes = [];
 
@@ -511,7 +513,7 @@ function Words({ phrase, revealedCount }: { phrase: string; revealedCount: Motio
         const start = cursor;
 
         nodes.push(
-            <span key={`w-${w}`} style={{ whiteSpace: "nowrap" }}>
+            <span key={`w-${w}`} className="word">
                 {Array.from(word).map((ch, j) => (
                     <Letter key={`w-${w}-c-${j}`} index={start + j} revealedCount={revealedCount} char={ch} />
                 ))}
@@ -520,11 +522,8 @@ function Words({ phrase, revealedCount }: { phrase: string; revealedCount: Motio
 
         cursor += word.length;
 
-        // espace entre mots (révélé comme un caractère)
         if (w < words.length - 1) {
-            nodes.push(
-                <Letter key={`space-${w}`} index={cursor} revealedCount={revealedCount} char={" "} />
-            );
+            nodes.push(<Letter key={`space-${w}`} index={cursor} revealedCount={revealedCount} char={" "} />);
             cursor += 1;
         }
     }
@@ -546,14 +545,7 @@ function Letter({
 
     if (isSpace) {
         return (
-            <span
-                aria-hidden
-                style={{
-                    display: "inline",
-                    opacity: 1,
-                    whiteSpace: "normal",
-                }}
-            >
+            <span aria-hidden style={{ display: "inline", opacity: 1 }}>
                 {" "}
             </span>
         );
