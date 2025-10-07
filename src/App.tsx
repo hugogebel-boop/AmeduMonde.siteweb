@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import Accueil from "./pages/Accueil";
 import OuPartir from "./pages/OuPartir";
 import Contact from "./pages/Contact";
-import QuiSommesNous from "./pages/QuiSommesNous";
 
 const C = {
     sable: "#1b120b",  // fond sombre
@@ -12,12 +11,12 @@ const C = {
     blanc: "#F9F8F6",  // blanc cassé
 };
 
-type RouteKey = "/" | "/ou-partir" | "/contact" | "/qui-sommes-nous";
+type RouteKey = "/" | "/ou-partir" | "/contact";
 
 function getHashRoute(): RouteKey {
     const h = window.location.hash.replace(/^#/, "") || "/";
-    const allowed: RouteKey[] = ["/", "/ou-partir", "/contact", "/qui-sommes-nous"];
-    return (allowed.includes(h as RouteKey) ? (h as RouteKey) : "/");
+    const allowed: RouteKey[] = ["/", "/ou-partir", "/contact"];
+    return allowed.includes(h as RouteKey) ? (h as RouteKey) : "/";
 }
 
 export default function App() {
@@ -30,8 +29,11 @@ export default function App() {
     }, []);
 
     return (
-        <div className="font-[Cormorant_Garamond]" style={{ background: C.blanc, color: C.taupe }}>
-            {/* Bandeau fixe */}
+        <div
+            className="font-[Cormorant_Garamond]"
+            style={{ background: C.blanc, color: C.taupe }}
+        >
+            {/* ─── Bandeau fixe ─────────────────────────── */}
             <header
                 style={{
                     position: "fixed",
@@ -56,23 +58,27 @@ export default function App() {
                         gap: 20,
                     }}
                 >
-                    <a href="#/" style={{ textDecoration: "none", color: C.taupe }}>Accueil</a>
-                    <a href="#/ou-partir" style={{ textDecoration: "none", color: C.taupe }}>Où partir</a>
-                    <a href="#/qui-sommes-nous" style={{ textDecoration: "none", color: C.taupe }}>Notre agence</a>
-                    <a href="#/contact" style={{ textDecoration: "none", color: C.taupe }}>Contact</a>
+                    <a href="#/" style={{ textDecoration: "none", color: C.taupe }}>
+                        Accueil
+                    </a>
+                    <a href="#/ou-partir" style={{ textDecoration: "none", color: C.taupe }}>
+                        Où partir
+                    </a>
+                    <a href="#/contact" style={{ textDecoration: "none", color: C.taupe }}>
+                        Contact
+                    </a>
                 </nav>
             </header>
 
-            {/* ✅ Décalage pour le bandeau — sauf sur la page d’accueil */}
+            {/* Décalage pour le bandeau */}
             {route !== "/" && <div style={{ height: 48 }} />}
 
-            {/* Contenu pages */}
+            {/* ─── Contenu des pages ───────────────────── */}
             {route === "/" && <Accueil />}
             {route === "/ou-partir" && <OuPartir />}
             {route === "/contact" && <Contact />}
-            {route === "/qui-sommes-nous" && <QuiSommesNous />}
 
-            {/* Footer */}
+            {/* ─── Footer ──────────────────────────────── */}
             <footer
                 style={{
                     background: C.bleu,
@@ -80,7 +86,7 @@ export default function App() {
                     color: C.blanc,
                     fontFamily: "ui-sans-serif, system-ui, sans-serif",
                     marginTop: 100,
-                    position: "relative",   // 👈 ajoute ça
+                    position: "relative",
                     zIndex: 30,
                 }}
             >
@@ -90,7 +96,8 @@ export default function App() {
                         margin: "0 auto",
                         padding: "0 40px",
                         display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                        gridTemplateColumns:
+                            "repeat(auto-fit, minmax(220px, 1fr))",
                         gap: 40,
                     }}
                 >
@@ -104,35 +111,111 @@ export default function App() {
                         >
                             Âme du Monde
                         </h3>
-                        <p style={{ lineHeight: 1.7, fontSize: 15, opacity: 0.9 }}>
-                            Voyages sur-mesure, conçus pour une expérience unique, alliant
-                            authenticité et raffinement.
+                        <p
+                            style={{
+                                lineHeight: 1.7,
+                                fontSize: 15,
+                                opacity: 0.9,
+                            }}
+                        >
+                            Voyages sur-mesure, conçus pour une expérience unique,
+                            alliant authenticité et raffinement.
                         </p>
                     </div>
 
                     <div>
-                        <h4 style={{ fontSize: 18, marginBottom: 12, fontWeight: 600 }}>Navigation</h4>
-                        <ul style={{ listStyle: "none", padding: 0, margin: 0, lineHeight: 1.8 }}>
-                            <li><a href="#/" style={{ color: C.blanc, textDecoration: "none" }}>Accueil</a></li>
-                            <li><a href="#/ou-partir" style={{ color: C.blanc, textDecoration: "none" }}>Où partir</a></li>
-                            <li><a href="#/qui-sommes-nous" style={{ color: C.blanc, textDecoration: "none" }}>Notre agence</a></li>
-                            <li><a href="#/contact" style={{ color: C.blanc, textDecoration: "none" }}>Contact</a></li>
-                            <li><a href="#/mentions" style={{ color: C.blanc, textDecoration: "none" }}>Mentions légales</a></li>
+                        <h4
+                            style={{
+                                fontSize: 18,
+                                marginBottom: 12,
+                                fontWeight: 600,
+                            }}
+                        >
+                            Navigation
+                        </h4>
+                        <ul
+                            style={{
+                                listStyle: "none",
+                                padding: 0,
+                                margin: 0,
+                                lineHeight: 1.8,
+                            }}
+                        >
+                            <li>
+                                <a
+                                    href="#/"
+                                    style={{
+                                        color: C.blanc,
+                                        textDecoration: "none",
+                                    }}
+                                >
+                                    Accueil
+                                </a>
+                            </li>
+                            <li>
+                                <a
+                                    href="#/ou-partir"
+                                    style={{
+                                        color: C.blanc,
+                                        textDecoration: "none",
+                                    }}
+                                >
+                                    Où partir
+                                </a>
+                            </li>
+                            <li>
+                                <a
+                                    href="#/contact"
+                                    style={{
+                                        color: C.blanc,
+                                        textDecoration: "none",
+                                    }}
+                                >
+                                    Contact
+                                </a>
+                            </li>
+                            <li>
+                                <a
+                                    href="#/mentions"
+                                    style={{
+                                        color: C.blanc,
+                                        textDecoration: "none",
+                                    }}
+                                >
+                                    Mentions légales
+                                </a>
+                            </li>
                         </ul>
                     </div>
 
                     <div>
-                        <h4 style={{ fontSize: 18, marginBottom: 12, fontWeight: 600 }}>Contact</h4>
+                        <h4
+                            style={{
+                                fontSize: 18,
+                                marginBottom: 12,
+                                fontWeight: 600,
+                            }}
+                        >
+                            Contact
+                        </h4>
                         <p style={{ margin: "6px 0" }}>Lausanne, Suisse</p>
                         <p style={{ margin: "6px 0" }}>contact@amedumonde.com</p>
                         <p style={{ margin: "6px 0" }}>+41 21 123 45 67</p>
                     </div>
 
                     <div>
-                        <h4 style={{ fontSize: 18, marginBottom: 12, fontWeight: 600 }}>Suivez-nous</h4>
+                        <h4
+                            style={{
+                                fontSize: 18,
+                                marginBottom: 12,
+                                fontWeight: 600,
+                            }}
+                        >
+                            Suivez-nous
+                        </h4>
                         <p style={{ margin: "6px 0" }}>
-                            Retrouvez Âme du Monde sur Instagram, Facebook et LinkedIn pour
-                            découvrir nos inspirations de voyage.
+                            Retrouvez Âme du Monde sur Instagram, Facebook et LinkedIn
+                            pour découvrir nos inspirations de voyage.
                         </p>
                     </div>
                 </div>
