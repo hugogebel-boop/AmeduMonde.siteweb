@@ -42,35 +42,42 @@ const h3Style: React.CSSProperties = {
 };
 
 export default function Accueil() {
-    /* ── Règles CSS ciblées (anti-césure mots + 3.jpg mobile plus haut) ── */
+    /* ── Règles CSS (anti-césure, responsive bloc2, anti-fuites blanches) ── */
     const css = `
-  .amorce-title{
-    hyphens:none; -webkit-hyphens:none; -ms-hyphens:none;
-    overflow-wrap:normal; word-break:keep-all;
-  }
-  .amorce-title span.word{ white-space:nowrap; } /* jamais de coupure intra-mot */
+    /* Fond global: évite de voir le hero à travers */
+    html, body, #root { background: ${C.blanc}; }
 
-  /* Bloc 2 — force 2 colonnes (texte gauche / image droite) */
-  .bloc2{
-    display:grid;
-    grid-template-columns: minmax(280px, 420px) 1fr;
-    gap: 44px;
-    align-items: center;       /* alignement horizontal propre (même ligne) */
-  }
-  .bloc2 p{ margin:0; }
-
-  /* on maintient les 2 colonnes même sur mobile pour rester strictement côte à côte */
-  @media (max-width: 520px){
-    .bloc2{
-      grid-template-columns: minmax(220px, 320px) 1fr;
-      gap: 24px;
+    .amorce-title{
+      hyphens:none; -webkit-hyphens:none; -ms-hyphens:none;
+      overflow-wrap:normal; word-break:keep-all;
     }
-  }
+    .amorce-title span.word{ white-space:nowrap; } /* jamais de coupure intra-mot */
 
-  /* 3.jpg : un poil plus haut en mobile */
-  @media (max-width: 640px){
-    .banner3{ height:min(28vh, 460px) !important; }
-  }
+    /* ── Bloc 2 (texte gauche / image droite sur desktop) ── */
+    .bloc2{
+      display:grid;
+      grid-template-columns: minmax(280px, 420px) 1fr;
+      gap: 44px;
+      align-items: center;
+    }
+    .bloc2 .txt{ max-width: 420px; }
+    .bloc2 .img{ width: 100%; height: 100%; }
+    .bloc2 p{ margin:0; }
+
+    /* ── Sur mobile: image au-dessus, texte en dessous ── */
+    @media (max-width: 640px){
+      .bloc2{
+        display:flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+      .bloc2 .img{ order: 0; }
+      .bloc2 .txt{ order: 1; }
+      .banner3{ height:min(28vh, 460px) !important; } /* 3.jpg un poil plus haut en mobile */
+    }
+
+    /* Joint blanc anti-fuite entre sections */
+    .seam-white{ height: 150px; background: ${C.blanc}; }
   `;
 
     /* ── Flèche du hero ─────────────────────────────────────────── */
@@ -87,7 +94,7 @@ export default function Accueil() {
     const REVEAL_WINDOW = 0.7;
     const reveal = useTransform<number, number>(stage, [0, REVEAL_WINDOW], [0, 1], { clamp: true });
 
-    const phrase = "Vivez une expérience unique à travers le monde.";
+    const phrase = "Vivez une expérience unique à travers le monde.                                                ";
 
     // ===== Découpage par mots (empêche toute césure au milieu d’un mot) =====
     const words = useMemo(() => phrase.trim().split(/\s+/), [phrase]);
@@ -236,7 +243,7 @@ export default function Accueil() {
             {/* Spacer plein écran */}
             <div style={{ height: "100vh", position: "relative", zIndex: 1 }} />
 
-            {/* ===== AMORCE STICKY (jamais coupée au milieu d’un mot) ===== */}
+            {/* ===== AMORCE STICKY ===== */}
             <section
                 ref={stageRef}
                 style={{ position: "relative", zIndex: 2, background: C.blanc, color: C.taupe, minHeight: "170vh" }}
@@ -263,7 +270,7 @@ export default function Accueil() {
                             fontSize: "clamp(22px, 6.2vw, 60px)",
                             lineHeight: 1.12,
                             letterSpacing: "0.01em",
-                            color: C.taupe,
+                            color: C.ocre,
                             transform: phraseYCss,
                             willChange: "transform",
                         }}
@@ -313,18 +320,15 @@ export default function Accueil() {
                             </p>
                         </div>
 
-                        {/* Bloc 2 — Texte étroit à gauche, 2.jpg à droite (aligné horizontalement) */}
+                        {/* Bloc 2 — Desktop: deux colonnes (texte gauche / image droite)
+                           Mobile: image au-dessus, texte dessous */}
                         <div className="bloc2">
-                            <p
-                                style={{
-                                    ...bodyText,
-                                    maxWidth: 420,           // étroit
-                                }}
-                            >
+                            <p className="txt" style={{ ...bodyText }}>
                                 Nos créateurs de voyage imaginent des itinéraires singuliers, inspirés par la beauté du monde et
                                 la richesse des cultures.
                             </p>
                             <img
+                                className="img"
                                 src={asset("/2.jpg")}
                                 alt=""
                                 style={{
@@ -437,8 +441,11 @@ export default function Accueil() {
                 </div>
             </section>
 
-            {/* ===== 3.jpg bandeau fin ===== */}
-            <section style={{ position: "relative", zIndex: 2, background: C.blanc, marginTop: 12 }}>
+            {/* ===== Joint blanc entre approche et 3.jpg (anti-fuite) ===== */}
+            <div className="seam-white" style={{ position: "relative", zIndex: 2 }} />
+
+            {/* ===== 3.jpg bandeau fin (sans marginTop, fond blanc) ===== */}
+            <section style={{ position: "relative", zIndex: 2, background: C.blanc }}>
                 <img
                     className="banner3"
                     src={asset("/3.jpg")}
@@ -449,6 +456,7 @@ export default function Accueil() {
                         objectFit: "cover",
                         display: "block",
                         borderRadius: 0,
+                        lineHeight: 0,
                     }}
                     loading="lazy"
                 />
