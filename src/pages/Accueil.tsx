@@ -61,9 +61,21 @@ export default function Accueil() {
         { clamp: true }
     );
 
-    // Phrase SANS espaces de padding, pour autoriser le retour à la ligne naturel
+    // Phrase avec espaces “normaux” entre les mots (pour le wrap naturel)
     const phrase = "Vivez une expérience unique à travers le monde.";
-    const chars = useMemo(() => Array.from(phrase), [phrase]);
+
+    // On construit un tableau de caractères en intercalant explicitement un espace entre chaque mot.
+    // Avantage : les espaces existent comme tokens indépendants (et peuvent rester visibles).
+    const chars = useMemo(() => {
+        const words = phrase.split(" ");
+        const out: string[] = [];
+        words.forEach((w, i) => {
+            out.push(...w.split(""));       // lettres du mot
+            if (i < words.length - 1) out.push(" "); // espace visible entre mots
+        });
+        return out;
+    }, [phrase]);
+
     const L = chars.length;
 
     // Compteur de lettres révélées
@@ -425,7 +437,7 @@ export default function Accueil() {
                         Envie de donner vie à votre prochain voyage&nbsp;? Parlons-en et dessinons, ensemble, l’itinéraire qui vous ressemble.
                     </p>
                     <a
-                        href="/#/contact"
+                        href="/AmeduMonde/#/contact"
                         style={{
                             display: "inline-block",
                             padding: "14px 22px",
