@@ -49,8 +49,27 @@ export default function Accueil() {
     overflow-wrap:normal; word-break:keep-all;
   }
   .amorce-title span.word{ white-space:nowrap; } /* jamais de coupure intra-mot */
+
+  /* Bloc 2 — force 2 colonnes (texte gauche / image droite) */
+  .bloc2{
+    display:grid;
+    grid-template-columns: minmax(280px, 420px) 1fr;
+    gap: 44px;
+    align-items: center;       /* alignement horizontal propre (même ligne) */
+  }
+  .bloc2 p{ margin:0; }
+
+  /* on maintient les 2 colonnes même sur mobile pour rester strictement côte à côte */
+  @media (max-width: 520px){
+    .bloc2{
+      grid-template-columns: minmax(220px, 320px) 1fr;
+      gap: 24px;
+    }
+  }
+
+  /* 3.jpg : un poil plus haut en mobile */
   @media (max-width: 640px){
-    .banner3{ height:min(28vh, 460px) !important; } /* 3.jpg : un poil plus haut en mobile */
+    .banner3{ height:min(28vh, 460px) !important; }
   }
   `;
 
@@ -294,23 +313,12 @@ export default function Accueil() {
                             </p>
                         </div>
 
-                        {/* Bloc 2 — Texte étroit à gauche, 2.jpg à droite */}
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 44,
-                                flexWrap: "wrap",
-                            }}
-                        >
+                        {/* Bloc 2 — Texte étroit à gauche, 2.jpg à droite (aligné horizontalement) */}
+                        <div className="bloc2">
                             <p
                                 style={{
                                     ...bodyText,
-                                    flex: "0 1 360px",
-                                    maxWidth: 420,
-                                    padding: "0 12px 0 0",
-                                    margin: 0,
-                                    order: 0,
+                                    maxWidth: 420,           // étroit
                                 }}
                             >
                                 Nos créateurs de voyage imaginent des itinéraires singuliers, inspirés par la beauté du monde et
@@ -321,12 +329,11 @@ export default function Accueil() {
                                 alt=""
                                 style={{
                                     width: "100%",
-                                    maxWidth: 900,
-                                    flex: "1 1 60%",
+                                    height: "100%",
                                     borderRadius: 0,
                                     objectFit: "cover",
                                     aspectRatio: "16 / 9",
-                                    order: 1,
+                                    display: "block",
                                 }}
                                 loading="lazy"
                             />
@@ -362,7 +369,7 @@ export default function Accueil() {
                 </p>
             </section>
 
-            {/* ===== Notre approche — + d'espace bas pour séparer de 3.jpg ===== */}
+            {/* ===== Notre approche ===== */}
             <section style={{ position: "relative", zIndex: 2, background: C.blanc }}>
                 <div style={{ maxWidth: 1180, margin: "0 auto", padding: "84px 24px 96px" }}>
                     <h3 style={h3Style}>Notre approche</h3>
@@ -430,7 +437,7 @@ export default function Accueil() {
                 </div>
             </section>
 
-            {/* ===== 3.jpg bandeau fin (avec marge-top + hauteur mobile ajustée) ===== */}
+            {/* ===== 3.jpg bandeau fin ===== */}
             <section style={{ position: "relative", zIndex: 2, background: C.blanc, marginTop: 12 }}>
                 <img
                     className="banner3"
@@ -438,7 +445,7 @@ export default function Accueil() {
                     alt=""
                     style={{
                         width: "100%",
-                        height: "clamp(110px, 18vw, 420px)", // desktop identique, mobile override via CSS ci-dessus
+                        height: "clamp(110px, 18vw, 420px)",
                         objectFit: "cover",
                         display: "block",
                         borderRadius: 0,
