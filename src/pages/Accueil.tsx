@@ -26,18 +26,20 @@ const prefersReduced =
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ===== Typo partagée ===== */
-const BODY_SIZE = 20;
+/* → Corps plus grand + interligne un peu augmenté */
+const BODY_SIZE = 22;
 const bodyText: React.CSSProperties = {
     fontSize: BODY_SIZE,
-    lineHeight: 1.8,
-    color: C.taupe, // corps en taupe
+    lineHeight: 1.9,
+    color: C.taupe,
+    margin: "0 0 20px",
 };
 const h3Style: React.CSSProperties = {
     fontFamily: "'Cormorant Garamond', serif",
     fontWeight: 300,
     fontSize: 36,
-    marginBottom: 16,
-    color: C.ocre, // sous-titres en ocre
+    marginBottom: 18,
+    color: C.ocre,
 };
 
 export default function Accueil() {
@@ -52,25 +54,17 @@ export default function Accueil() {
         offset: ["start start", "end start"],
     });
 
-    // Fenêtre de révélation (lettre par lettre)
     const REVEAL_WINDOW = 0.7;
-    const reveal = useTransform<number, number>(
-        stage,
-        [0, REVEAL_WINDOW],
-        [0, 1],
-        { clamp: true }
-    );
+    const reveal = useTransform<number, number>(stage, [0, REVEAL_WINDOW], [0, 1], { clamp: true });
 
-    // Phrase avec espaces “normaux” entre les mots (pour le wrap naturel)
-    const phrase = "Vivez une expérience unique à travers le monde.                                  ";
+    const phrase =
+        "Vivez une expérience unique à travers le monde.                                  ";
 
-    // On construit un tableau de caractères en intercalant explicitement un espace entre chaque mot.
-    // Avantage : les espaces existent comme tokens indépendants (et peuvent rester visibles).
     const chars = useMemo(() => {
         const words = phrase.split(" ");
         const out: string[] = [];
         words.forEach((w, i) => {
-            out.push(...w.split(""));       // lettres du mot
+            out.push(...w.split(""));
             if (i < words.length - 1) out.push(" "); // espace visible entre mots
         });
         return out;
@@ -78,25 +72,17 @@ export default function Accueil() {
 
     const L = chars.length;
 
-    // Compteur de lettres révélées
     const revealedCount: MotionValue<number> = prefersReduced
-        ? useMotionValue(L) // pas d’anim si motion réduite
+        ? useMotionValue(L)
         : useTransform<number, number>(reveal, (p) => {
             const n = Math.round(p * L);
             return n < 0 ? 0 : n > L ? L : n;
         });
 
-    // Quand tout est révélé, on débloque la “post anim”
-    const allRevealed = useTransform<number, number>(
-        revealedCount,
-        (n) => (n >= L ? 1 : 0)
-    );
-    const postBase = useTransform<number, number>(
-        stage,
-        [REVEAL_WINDOW, 1],
-        [0, 1],
-        { clamp: true }
-    );
+    const allRevealed = useTransform<number, number>(revealedCount, (n) => (n >= L ? 1 : 0));
+    const postBase = useTransform<number, number>(stage, [REVEAL_WINDOW, 1], [0, 1], {
+        clamp: true,
+    });
 
     const post = useMotionValue(0);
     useEffect(() => {
@@ -114,11 +100,8 @@ export default function Accueil() {
         };
     }, [allRevealed, postBase, post]);
 
-    // L’amorce remonte légèrement une fois révélée (effet “cover”)
     const phraseYpx = useTransform(post, [0, 1], [0, -220]);
     const phraseYCss = useTransform(phraseYpx, (v) => `translateY(${v}px)`);
-
-    // Le grand titre “Âme du Monde” s’éteint au début du scroll
     const titleOpacity = useTransform(stage, [0, 0.02, 0.12], [1, 1, 0]);
 
     return (
@@ -149,7 +132,6 @@ export default function Accueil() {
                     fetchPriority="high"
                     draggable={false}
                 />
-                {/* léger fade top pour les barres système */}
                 <div
                     style={{
                         position: "absolute",
@@ -180,9 +162,7 @@ export default function Accueil() {
                     paddingTop: "38vh",
                 }}
             >
-                <motion.div
-                    style={{ opacity: titleOpacity, width: "100%", height: "100%" }}
-                >
+                <motion.div style={{ opacity: titleOpacity, width: "100%", height: "100%" }}>
                     <motion.h1
                         initial={prefersReduced ? false : { opacity: 0, y: 20 }}
                         animate={prefersReduced ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
@@ -200,7 +180,6 @@ export default function Accueil() {
                         Âme du Monde
                     </motion.h1>
 
-                    {/* flèche bas (discrète) */}
                     <motion.div
                         style={{
                             position: "absolute",
@@ -226,20 +205,16 @@ export default function Accueil() {
                                     : { duration: 2, ease: "easeInOut", repeat: Infinity }
                             }
                         >
-                            <path
-                                d="M12 5v14M5 12l7 7 7-7"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            />
+                            <path d="M12 5v14M5 12l7 7 7-7" strokeLinecap="round" strokeLinejoin="round" />
                         </motion.svg>
                     </motion.div>
                 </motion.div>
             </div>
 
-            {/* Spacer pour laisser le hero plein écran */}
+            {/* Spacer plein écran */}
             <div style={{ height: "100vh", position: "relative", zIndex: 1 }} />
 
-            {/* ===== AMORCE STICKY (peut passer sur 2 lignes) ===== */}
+            {/* ===== AMORCE STICKY ===== */}
             <section
                 ref={stageRef}
                 style={{
@@ -247,7 +222,6 @@ export default function Accueil() {
                     zIndex: 2,
                     background: C.blanc,
                     color: C.taupe,
-                    // hauteur large pour laisser le temps au reveal sans saccades
                     minHeight: "170vh",
                 }}
             >
@@ -267,12 +241,10 @@ export default function Accueil() {
                         style={{
                             fontFamily: "'Cormorant Garamond', serif",
                             fontWeight: 300,
-                            // → autorise la coupure en 2 lignes naturellement
                             whiteSpace: "normal",
                             wordBreak: "normal",
-                            overflowWrap: "anywhere", // évite les débordements extrêmes sur très petit écran
+                            overflowWrap: "anywhere",
                             textAlign: "center",
-                            // largeur max pour “forcer” 1–2 lignes élégantes selon viewport
                             maxWidth: "min(92vw, 980px)",
                             fontSize: "clamp(22px, 6.2vw, 60px)",
                             lineHeight: 1.12,
@@ -283,12 +255,7 @@ export default function Accueil() {
                         }}
                     >
                         {chars.map((ch, i) => (
-                            <Letter
-                                key={`${ch}-${i}`}
-                                index={i}
-                                revealedCount={revealedCount}
-                                char={ch}
-                            />
+                            <Letter key={`${ch}-${i}`} index={i} revealedCount={revealedCount} char={ch} />
                         ))}
                     </motion.h2>
                 </div>
@@ -296,20 +263,30 @@ export default function Accueil() {
 
             {/* ===== CONTENU — Notre agence ===== */}
             <section style={{ position: "relative", zIndex: 2, background: C.blanc }}>
-                <div style={{ maxWidth: 1100, margin: "0 auto", padding: "64px 20px 96px" }}>
+                <div
+                    style={{
+                        maxWidth: 1180,
+                        margin: "0 auto",
+                        padding: "72px 24px 110px", // un peu plus d’air
+                    }}
+                >
                     <h3 style={h3Style}>Notre agence</h3>
-                    <p style={{ ...bodyText, maxWidth: 780 }}>
-                        Des voyages sur-mesure, conçus pour une expérience unique, alliant authenticité et équilibre subtil.
-                        Conçus avec soin, nos itinéraires vous laissent la liberté de savourer pleinement chaque moment.
+
+                    {/* Intro avec corps plus grand */}
+                    <p style={{ ...bodyText, maxWidth: 820, marginBottom: 28 }}>
+                        Des voyages sur-mesure, conçus pour une expérience unique, alliant authenticité et
+                        équilibre subtil. Conçus avec soin, nos itinéraires vous laissent la liberté de
+                        savourer pleinement chaque moment.
                     </p>
 
-                    <div style={{ marginTop: 80, display: "flex", flexDirection: "column", gap: 80 }}>
+                    <div style={{ marginTop: 90, display: "flex", flexDirection: "column", gap: 90 }}>
+                        {/* Bloc 1 */}
                         <div
                             style={{
                                 display: "flex",
                                 flexDirection: "row",
                                 alignItems: "center",
-                                gap: 40,
+                                gap: 44,
                                 flexWrap: "wrap",
                             }}
                         >
@@ -318,24 +295,34 @@ export default function Accueil() {
                                 alt=""
                                 style={{
                                     width: "100%",
-                                    maxWidth: 460,
+                                    maxWidth: 520, // légèrement plus large
                                     borderRadius: 12,
                                     objectFit: "cover",
                                     aspectRatio: "3 / 4",
+                                    flex: "0 1 480px",
                                 }}
                                 loading="lazy"
                             />
-                            <p style={{ ...bodyText, flex: 1 }}>
-                                De l’organisation aux rencontres, chaque détail est façonné pour révéler l’authenticité et créer des souvenirs impérissables.
+                            <p
+                                style={{
+                                    ...bodyText,
+                                    flex: 1,
+                                    maxWidth: 720,
+                                    padding: "0 28px", // ↙ marges supplémentaires demandées
+                                }}
+                            >
+                                De l’organisation aux rencontres, chaque détail est façonné pour révéler
+                                l’authenticité et créer des souvenirs impérissables.
                             </p>
                         </div>
 
+                        {/* Bloc 2 — 2.jpg beaucoup plus large */}
                         <div
                             style={{
                                 display: "flex",
                                 flexDirection: "row-reverse",
                                 alignItems: "center",
-                                gap: 40,
+                                gap: 44,
                                 flexWrap: "wrap",
                             }}
                         >
@@ -344,15 +331,25 @@ export default function Accueil() {
                                 alt=""
                                 style={{
                                     width: "100%",
-                                    maxWidth: 460,
+                                    /* → image nettement plus large sur desktop */
+                                    maxWidth: 900,
+                                    flex: "1 1 60%",
                                     borderRadius: 12,
                                     objectFit: "cover",
-                                    aspectRatio: "3 / 4",
+                                    aspectRatio: "4 / 3", // ratio plus “paysage” pour l’élargir visuellement
                                 }}
                                 loading="lazy"
                             />
-                            <p style={{ ...bodyText, flex: 1 }}>
-                                Nos créateurs de voyage imaginent des itinéraires singuliers, inspirés par la beauté du monde et la richesse des cultures.
+                            <p
+                                style={{
+                                    ...bodyText,
+                                    flex: "1 1 340px",
+                                    maxWidth: 720,
+                                    padding: "0 28px", // ↙ marges supplémentaires demandées
+                                }}
+                            >
+                                Nos créateurs de voyage imaginent des itinéraires singuliers, inspirés par la
+                                beauté du monde et la richesse des cultures.
                             </p>
                         </div>
                     </div>
@@ -366,7 +363,7 @@ export default function Accueil() {
                     zIndex: 2,
                     background: C.taupe,
                     color: C.blanc,
-                    padding: "120px 20px",
+                    padding: "120px 24px",
                     textAlign: "center",
                 }}
             >
@@ -374,34 +371,37 @@ export default function Accueil() {
                 <p
                     style={{
                         fontSize: BODY_SIZE,
-                        lineHeight: 1.8,
+                        lineHeight: 1.9,
                         opacity: 0.95,
-                        maxWidth: 700,
+                        maxWidth: 720,
                         margin: "0 auto",
                         color: C.blanc,
                     }}
                 >
-                    Compétence, Engagement, Polyvalence, Créativité et Durabilité — cinq piliers qui guident chacun de nos
-                    projets et chaque expérience que nous façonnons.
+                    Compétence, Engagement, Polyvalence, Créativité et Durabilité — cinq piliers qui guident
+                    chacun de nos projets et chaque expérience que nous façonnons.
                 </p>
             </section>
 
             {/* ===== Notre approche ===== */}
             <section style={{ position: "relative", zIndex: 2, background: C.blanc }}>
-                <div style={{ maxWidth: 1100, margin: "0 auto", padding: "80px 20px 40px" }}>
+                <div style={{ maxWidth: 1180, margin: "0 auto", padding: "84px 24px 44px" }}>
                     <h3 style={h3Style}>Notre approche</h3>
-                    <div style={{ display: "grid", gap: 28, gridTemplateColumns: "1fr", maxWidth: 900 }}>
+                    <div style={{ display: "grid", gap: 28, gridTemplateColumns: "1fr", maxWidth: 920 }}>
                         <p style={bodyText}>
-                            <strong style={{ color: C.taupe }}>Écoute & co-création&nbsp;:</strong> nous partons de vos envies,
-                            de vos contraintes et de votre rythme pour façonner une trame fidèle à votre style de voyage.
+                            <strong style={{ color: C.taupe }}>Écoute & co-création&nbsp;:</strong> nous partons
+                            de vos envies, de vos contraintes et de votre rythme pour façonner une trame fidèle à
+                            votre style de voyage.
                         </p>
                         <p style={bodyText}>
-                            <strong style={{ color: C.taupe }}>Sélection exigeante&nbsp;:</strong> hébergements de caractère,
-                            expériences rares et partenaires triés sur le volet pour garantir le juste équilibre entre confort et authenticité.
+                            <strong style={{ color: C.taupe }}>Sélection exigeante&nbsp;:</strong> hébergements de
+                            caractère, expériences rares et partenaires triés sur le volet pour garantir le juste
+                            équilibre entre confort et authenticité.
                         </p>
                         <p style={bodyText}>
-                            <strong style={{ color: C.taupe }}>Sérénité opérationnelle&nbsp;:</strong> logistique fluide,
-                            temps de trajet optimisés et assistance humaine avant, pendant et après le voyage.
+                            <strong style={{ color: C.taupe }}>Sérénité opérationnelle&nbsp;:</strong> logistique
+                            fluide, temps de trajet optimisés et assistance humaine avant, pendant et après le
+                            voyage.
                         </p>
                     </div>
                 </div>
@@ -428,13 +428,14 @@ export default function Accueil() {
                     position: "relative",
                     zIndex: 2,
                     background: C.blanc,
-                    padding: "56px 20px 96px",
+                    padding: "64px 24px 104px",
                 }}
             >
-                <div style={{ maxWidth: 1100, margin: "0 auto", textAlign: "center" }}>
+                <div style={{ maxWidth: 1180, margin: "0 auto", textAlign: "center" }}>
                     <h3 style={h3Style}>Contact</h3>
-                    <p style={{ ...bodyText, maxWidth: 760, margin: "0 auto 28px" }}>
-                        Envie de donner vie à votre prochain voyage&nbsp;? Parlons-en et dessinons, ensemble, l’itinéraire qui vous ressemble.
+                    <p style={{ ...bodyText, maxWidth: 800, margin: "0 auto 30px" }}>
+                        Envie de donner vie à votre prochain voyage&nbsp;? Parlons-en et dessinons, ensemble,
+                        l’itinéraire qui vous ressemble.
                     </p>
                     <a
                         href="/AmeduMonde.siteweb/#/contact"
@@ -466,7 +467,7 @@ export default function Accueil() {
                 </div>
             </section>
 
-            {/* ===== JOINT BLANC SOUS LE FOOTER (anti-fuite) ===== */}
+            {/* ===== Joint blanc sous footer (anti-fuite) ===== */}
             <div
                 aria-hidden
                 style={{
@@ -481,12 +482,7 @@ export default function Accueil() {
     );
 }
 
-/* ===== Lettres (révélation progressive, compatible wrap) =====
-   IMPORTANT :
-   - On NE force PAS l’espace insécable ici, afin d’autoriser la
-     césure sur plusieurs lignes naturellement.
-   - Chaque caractère est un span ; le wrapping reste possible entre spans.
-*/
+/* ===== Lettres (révélation progressive, compatible wrap) ===== */
 function Letter({
     index,
     revealedCount,
@@ -499,14 +495,13 @@ function Letter({
     const isSpace = char === " ";
 
     if (isSpace) {
-        // espace toujours visible, participe au wrap
         return (
             <span
                 aria-hidden
                 style={{
-                    display: "inline",      // pas inline-block → césure OK
-                    opacity: 1,             // toujours visible
-                    whiteSpace: "normal",   // espace normal, pas d’NBSP
+                    display: "inline",
+                    opacity: 1,
+                    whiteSpace: "normal",
                 }}
             >
                 {" "}
@@ -514,10 +509,7 @@ function Letter({
         );
     }
 
-    const opacity = useTransform<number, number>(
-        revealedCount,
-        (n) => (index < n ? 1 : 0)
-    );
+    const opacity = useTransform<number, number>(revealedCount, (n) => (index < n ? 1 : 0));
 
     return (
         <motion.span
