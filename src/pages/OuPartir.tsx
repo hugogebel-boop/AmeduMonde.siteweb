@@ -168,7 +168,7 @@ export default function OuPartir() {
                     <motion.a
                         {...fadeUp}
                         transition={{ ...fadeUp.transition, delay: 0.1 }}
-                        href="/AmeduMonde.siteweb/#/contact"
+                        href={CONTACT_HREF}
                         onClick={() => requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }))}
                         style={{
                             display: "inline-block",

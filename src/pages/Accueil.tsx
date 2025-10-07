@@ -18,6 +18,7 @@ const C = {
 } as const;
 
 /* ===== Utils ===== */
+const CONTACT_HREF = "#/contact";
 const asset = (p: string) => `${import.meta.env.BASE_URL}${p.replace(/^\/+/, "")}`;
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
 const prefersReduced =
@@ -471,7 +472,7 @@ export default function Accueil() {
                         vous ressemble.
                     </p>
                     <a
-                        href="/AmeduMonde.siteweb/#/contact"
+                        href={CONTACT_HREF}
                         onClick={() => {
                             requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
                         }}
