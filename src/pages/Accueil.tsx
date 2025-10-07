@@ -437,7 +437,7 @@ export default function Accueil() {
                         Envie de donner vie à votre prochain voyage&nbsp;? Parlons-en et dessinons, ensemble, l’itinéraire qui vous ressemble.
                     </p>
                     <a
-                        href="/AmeduMonde/#/contact"
+                        href="/AmeduMonde.siteweb/#/contact"
                         style={{
                             display: "inline-block",
                             padding: "14px 22px",
