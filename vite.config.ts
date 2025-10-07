@@ -1,21 +1,16 @@
 ﻿// vite.config.ts
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
-export default defineConfig(({ command }) => {
-  if (command === 'serve') {
-    return {
-      plugins: [react()],
-      base: '/', // pas de sous-chemin en dev
-    }
-  }
-
-  const repo = process.env.REPO_NAME ?? ''
-  const isPages = process.env.GITHUB_PAGES === 'true'
-  const isUserOrgPage = repo.endsWith('.github.io')
-
-  return {
+export default defineConfig({
     plugins: [react()],
-    base: isPages ? (isUserOrgPage || !repo ? '/' : `/${repo}/`) : '/',
-  }
-})
+    base: "/", // ✅ ton domaine personnalisé pointe à la racine
+    build: {
+        outDir: "dist",
+        sourcemap: false,
+    },
+    server: {
+        port: 5173, // ou celui que tu veux
+        open: true,
+    },
+});
