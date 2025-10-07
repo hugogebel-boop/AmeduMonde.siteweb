@@ -62,7 +62,7 @@ export default function Accueil() {
     );
 
     // Phrase avec espaces “normaux” entre les mots (pour le wrap naturel)
-    const phrase = "Vivez une expérience unique à travers le monde.";
+    const phrase = "Vivez une expérience unique à travers le monde.                                  ";
 
     // On construit un tableau de caractères en intercalant explicitement un espace entre chaque mot.
     // Avantage : les espaces existent comme tokens indépendants (et peuvent rester visibles).
@@ -496,10 +496,29 @@ function Letter({
     revealedCount: MotionValue<number>;
     char: string;
 }) {
+    const isSpace = char === " ";
+
+    if (isSpace) {
+        // espace toujours visible, participe au wrap
+        return (
+            <span
+                aria-hidden
+                style={{
+                    display: "inline",      // pas inline-block → césure OK
+                    opacity: 1,             // toujours visible
+                    whiteSpace: "normal",   // espace normal, pas d’NBSP
+                }}
+            >
+                {" "}
+            </span>
+        );
+    }
+
     const opacity = useTransform<number, number>(
         revealedCount,
         (n) => (index < n ? 1 : 0)
     );
+
     return (
         <motion.span
             style={{
