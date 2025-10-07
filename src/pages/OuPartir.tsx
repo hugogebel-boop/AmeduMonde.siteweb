@@ -14,7 +14,7 @@ const C = {
 /* ===== Utils ===== */
 const asset = (p: string) => `${import.meta.env.BASE_URL}${p.replace(/^\/+/, "")}`;
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
-
+const CONTACT_HREF = "#/contact";
 /* ===== Typo partagée ===== */
 const BODY_SIZE = 22;
 const bodyText: React.CSSProperties = {
