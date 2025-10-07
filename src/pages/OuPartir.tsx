@@ -14,7 +14,7 @@ const C = {
 /* ===== Utils ===== */
 const asset = (p: string) => `${import.meta.env.BASE_URL}${p.replace(/^\/+/, "")}`;
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
-const CONTACT_HREF = "#/contact";
+
 /* ===== Typo partagée ===== */
 const BODY_SIZE = 22;
 const bodyText: React.CSSProperties = {
@@ -38,13 +38,18 @@ const h3Style: React.CSSProperties = {
     color: C.ocre,
 };
 
+/* ===== Easing (tuple cubic-bezier) =====
+   Évite les erreurs TS: Easing doit être une fonction ou un tuple, pas un string.
+*/
+const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
+
 /* ===== Animations ===== */
 const fadeUp = {
     initial: { opacity: 0, y: 14 },
     whileInView: { opacity: 1, y: 0 },
-    transition: { duration: 0.5, ease: "easeOut" },
+    transition: { duration: 0.5, ease: EASE },
     viewport: { once: true, amount: 0.2 },
-};
+} as const;
 
 export default function OuPartir() {
     useEffect(() => {
@@ -75,7 +80,7 @@ export default function OuPartir() {
     @media (max-width: 900px){ .two-col { grid-template-columns: 1fr; } }
   `;
 
-    const CONTACT_HREF = "/contact"; // ou "/AmeduMonde.siteweb/#/contact"
+    const CONTACT_HREF = "/#/contact"; // adapte si tu es en hash routing
 
     return (
         <main style={{ position: "relative", isolation: "isolate", background: C.blanc }}>
@@ -97,13 +102,22 @@ export default function OuPartir() {
                     Où partir&nbsp;?
                 </motion.h1>
 
-                <motion.p {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.05 }} style={{ ...bodyText, maxWidth: 920, marginTop: 18 }}>
+                <motion.p
+                    {...fadeUp}
+                    transition={{ ...(fadeUp.transition as any), delay: 0.05 }}
+                    style={{ ...bodyText, maxWidth: 920, marginTop: 18 }}
+                >
                     Il n’y a pas d’endroit parfait ni d’itinéraire imposé. Le voyage commence par une émotion, une saison,
                     une manière d’habiter le temps. Nous concevons votre route partout dans le monde — îles lointaines, capitales
                     vibrantes, contrées sauvages — avec la même exigence d’esthétique, d’authenticité et d’équilibre.
                 </motion.p>
 
-                <motion.div {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.1 }} className="chips" style={{ marginTop: 16 }}>
+                <motion.div
+                    {...fadeUp}
+                    transition={{ ...(fadeUp.transition as any), delay: 0.1 }}
+                    className="chips"
+                    style={{ marginTop: 16 }}
+                >
                     {["Méditerranée", "Afrique & déserts", "Amériques", "Asie & temples", "Nord & fjords", "Océanie"].map((t) => (
                         <span key={t} className="chip">{t}</span>
                     ))}
@@ -115,7 +129,7 @@ export default function OuPartir() {
                 <motion.h2 {...fadeUp} style={h2Style}>Votre envie comme point de départ</motion.h2>
                 <motion.p
                     {...fadeUp}
-                    transition={{ ...fadeUp.transition, delay: 0.05 }}
+                    transition={{ ...(fadeUp.transition as any), delay: 0.05 }}
                     style={{ ...bodyText, maxWidth: 860, marginBottom: 8 }}
                 >
                     Plutôt rivage paisible, immersion culturelle, grande traversée, voyage gourmand ou retraite en lodge&nbsp;?
@@ -137,7 +151,7 @@ export default function OuPartir() {
                             className="card"
                             initial={{ opacity: 0, y: 10 }}
                             whileInView={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.4, ease: "easeOut", delay: 0.06 * i }}
+                            transition={{ duration: 0.4, ease: EASE, delay: 0.06 * i }}
                             viewport={{ once: true, amount: 0.2 }}
                         >
                             <div style={h3Style}>{c.t}</div>
@@ -158,7 +172,7 @@ export default function OuPartir() {
                     </motion.h2>
                     <motion.p
                         {...fadeUp}
-                        transition={{ ...fadeUp.transition, delay: 0.05 }}
+                        transition={{ ...(fadeUp.transition as any), delay: 0.05 }}
                         style={{ ...bodyText, margin: "0 auto 22px", maxWidth: 760, color: C.blanc, opacity: 0.95 }}
                     >
                         Racontez-nous vos envies, vos inspirations, ou simplement une idée qui vous traverse.
@@ -167,7 +181,7 @@ export default function OuPartir() {
 
                     <motion.a
                         {...fadeUp}
-                        transition={{ ...fadeUp.transition, delay: 0.1 }}
+                        transition={{ ...(fadeUp.transition as any), delay: 0.1 }}
                         href={CONTACT_HREF}
                         onClick={() => requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }))}
                         style={{
@@ -196,14 +210,14 @@ export default function OuPartir() {
                 </div>
             </section>
 
-            {/* ── Saisons comme boussole (déplacée ici) ───────────────────── */}
+            {/* ── Saisons comme boussole ────────────────────────────── */}
             <section className="container" style={{ paddingTop: 96, paddingBottom: 100 }}>
                 <div className="two-col">
                     <div>
                         <motion.h2 {...fadeUp} style={h2Style}>Les saisons comme boussole</motion.h2>
                         <motion.p
                             {...fadeUp}
-                            transition={{ ...fadeUp.transition, delay: 0.05 }}
+                            transition={{ ...(fadeUp.transition as any), delay: 0.05 }}
                             style={{ ...bodyText, marginTop: 6 }}
                         >
                             Nous aimons voyager en harmonie avec la nature&nbsp;: les saisons inspirent le
@@ -218,7 +232,7 @@ export default function OuPartir() {
 
                     <motion.aside
                         {...fadeUp}
-                        transition={{ ...fadeUp.transition, delay: 0.1 }}
+                        transition={{ ...(fadeUp.transition as any), delay: 0.1 }}
                         className="card"
                         style={{ borderRadius: 12 }}
                     >
@@ -233,7 +247,7 @@ export default function OuPartir() {
                 </div>
             </section>
 
-            {/* ── Joint anti-fuite (comme Accueil) ───────────────────── */}
+            {/* ── Joint anti-fuite ─────────────────────────────────── */}
             <div aria-hidden style={{ background: C.blanc, height: 160, marginBottom: -160 }} />
         </main>
     );
