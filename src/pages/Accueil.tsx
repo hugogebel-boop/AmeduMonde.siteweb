@@ -26,7 +26,6 @@ const prefersReduced =
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ===== Typo partagée ===== */
-/* → Corps plus grand + interligne un peu augmenté */
 const BODY_SIZE = 22;
 const bodyText: React.CSSProperties = {
     fontSize: BODY_SIZE,
@@ -57,8 +56,7 @@ export default function Accueil() {
     const REVEAL_WINDOW = 0.7;
     const reveal = useTransform<number, number>(stage, [0, REVEAL_WINDOW], [0, 1], { clamp: true });
 
-    const phrase =
-        "Vivez une expérience unique à travers le monde.                                  ";
+    const phrase = "Vivez une expérience unique à travers le monde.                                  ";
 
     const chars = useMemo(() => {
         const words = phrase.split(" ");
@@ -267,12 +265,11 @@ export default function Accueil() {
                     style={{
                         maxWidth: 1180,
                         margin: "0 auto",
-                        padding: "72px 24px 110px", // un peu plus d’air
+                        padding: "72px 24px 110px",
                     }}
                 >
                     <h3 style={h3Style}>Notre agence</h3>
 
-                    {/* Intro avec corps plus grand */}
                     <p style={{ ...bodyText, maxWidth: 820, marginBottom: 28 }}>
                         Des voyages sur-mesure, conçus pour une expérience unique, alliant authenticité et
                         équilibre subtil. Conçus avec soin, nos itinéraires vous laissent la liberté de
@@ -295,8 +292,8 @@ export default function Accueil() {
                                 alt=""
                                 style={{
                                     width: "100%",
-                                    maxWidth: 520, // légèrement plus large
-                                    borderRadius: 12,
+                                    maxWidth: 520,
+                                    borderRadius: 0, // ⛔ pas de coins arrondis
                                     objectFit: "cover",
                                     aspectRatio: "3 / 4",
                                     flex: "0 1 480px",
@@ -308,7 +305,7 @@ export default function Accueil() {
                                     ...bodyText,
                                     flex: 1,
                                     maxWidth: 720,
-                                    padding: "0 28px", // ↙ marges supplémentaires demandées
+                                    padding: "0 28px",
                                 }}
                             >
                                 De l’organisation aux rencontres, chaque détail est façonné pour révéler
@@ -316,41 +313,42 @@ export default function Accueil() {
                             </p>
                         </div>
 
-                        {/* Bloc 2 — 2.jpg beaucoup plus large */}
+                        {/* Bloc 2 — Texte à gauche, 2.jpg à droite (jamais en dessous sur desktop) */}
                         <div
                             style={{
                                 display: "flex",
-                                flexDirection: "row-reverse",
+                                flexDirection: "row", // ✅ texte à gauche, image à droite
                                 alignItems: "center",
                                 gap: 44,
                                 flexWrap: "wrap",
                             }}
                         >
-                            <img
-                                src={asset("/2.jpg")}
-                                alt=""
-                                style={{
-                                    width: "100%",
-                                    /* → image nettement plus large sur desktop */
-                                    maxWidth: 900,
-                                    flex: "1 1 60%",
-                                    borderRadius: 12,
-                                    objectFit: "cover",
-                                    aspectRatio: "4 / 3", // ratio plus “paysage” pour l’élargir visuellement
-                                }}
-                                loading="lazy"
-                            />
                             <p
                                 style={{
                                     ...bodyText,
                                     flex: "1 1 340px",
                                     maxWidth: 720,
-                                    padding: "0 28px", // ↙ marges supplémentaires demandées
+                                    padding: "0 28px",
+                                    order: 0,
                                 }}
                             >
                                 Nos créateurs de voyage imaginent des itinéraires singuliers, inspirés par la
                                 beauté du monde et la richesse des cultures.
                             </p>
+                            <img
+                                src={asset("/2.jpg")}
+                                alt=""
+                                style={{
+                                    width: "100%",
+                                    maxWidth: 900,
+                                    flex: "1 1 60%",
+                                    borderRadius: 0, // ⛔ pas de coins arrondis
+                                    objectFit: "cover",
+                                    aspectRatio: "4 / 3",
+                                    order: 1,
+                                }}
+                                loading="lazy"
+                            />
                         </div>
                     </div>
                 </div>
@@ -373,50 +371,97 @@ export default function Accueil() {
                         fontSize: BODY_SIZE,
                         lineHeight: 1.9,
                         opacity: 0.95,
-                        maxWidth: 720,
+                        maxWidth: 820,
                         margin: "0 auto",
                         color: C.blanc,
                     }}
                 >
-                    Compétence, Engagement, Polyvalence, Créativité et Durabilité — cinq piliers qui guident
-                    chacun de nos projets et chaque expérience que nous façonnons.
+                    Compétence, engagement, polyvalence, créativité et durabilité guident notre manière de
+                    concevoir chaque voyage : une exigence sereine, tournée vers l’essentiel et faite pour durer.
                 </p>
             </section>
 
-            {/* ===== Notre approche ===== */}
+            {/* ===== Notre approche (nouveau design) ===== */}
             <section style={{ position: "relative", zIndex: 2, background: C.blanc }}>
                 <div style={{ maxWidth: 1180, margin: "0 auto", padding: "84px 24px 44px" }}>
                     <h3 style={h3Style}>Notre approche</h3>
-                    <div style={{ display: "grid", gap: 28, gridTemplateColumns: "1fr", maxWidth: 920 }}>
-                        <p style={bodyText}>
-                            <strong style={{ color: C.taupe }}>Écoute & co-création&nbsp;:</strong> nous partons
-                            de vos envies, de vos contraintes et de votre rythme pour façonner une trame fidèle à
-                            votre style de voyage.
-                        </p>
-                        <p style={bodyText}>
-                            <strong style={{ color: C.taupe }}>Sélection exigeante&nbsp;:</strong> hébergements de
-                            caractère, expériences rares et partenaires triés sur le volet pour garantir le juste
-                            équilibre entre confort et authenticité.
-                        </p>
-                        <p style={bodyText}>
-                            <strong style={{ color: C.taupe }}>Sérénité opérationnelle&nbsp;:</strong> logistique
-                            fluide, temps de trajet optimisés et assistance humaine avant, pendant et après le
-                            voyage.
-                        </p>
+
+                    {/* Intro courte et élégante */}
+                    <p style={{ ...bodyText, maxWidth: 820, marginBottom: 36 }}>
+                        Une méthode claire, discrète et attentive : nous co-créons avec vous, choisissons avec soin,
+                        et orchestrons l’ensemble pour que tout paraisse simple.
+                    </p>
+
+                    {/* Grid de 3 cartes minimalistes */}
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                            gap: 22,
+                            alignItems: "stretch",
+                        }}
+                    >
+                        {[
+                            {
+                                title: "Écoute & co-création",
+                                text:
+                                    "Vos envies, votre rythme et vos contraintes forment la trame. Nous dessinons ensemble un itinéraire fidèle à votre style.",
+                            },
+                            {
+                                title: "Sélection exigeante",
+                                text:
+                                    "Maisons de caractère, expériences rares et partenaires choisis avec précision pour conjuguer confort et authenticité.",
+                            },
+                            {
+                                title: "Sérénité opérationnelle",
+                                text:
+                                    "Logistique fluide, temps optimisés et présence humaine avant, pendant et après—pour voyager l’esprit libre.",
+                            },
+                        ].map((b, i) => (
+                            <motion.article
+                                key={i}
+                                whileHover={{ y: -3 }}
+                                transition={{ type: "spring", stiffness: 260, damping: 26 }}
+                                style={{
+                                    borderTop: `1px solid ${C.taupe}22`,
+                                    padding: "22px 22px 18px",
+                                    background: "#fff",
+                                    boxShadow: "0 1px 0 rgba(0,0,0,0.04)",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 8,
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        fontFamily: "'Cormorant Garamond', serif",
+                                        fontWeight: 300,
+                                        fontSize: 22,
+                                        letterSpacing: "0.01em",
+                                        color: C.sable,
+                                    }}
+                                >
+                                    {b.title}
+                                </div>
+                                <p style={{ ...bodyText, margin: 0 }}>{b.text}</p>
+                            </motion.article>
+                        ))}
                     </div>
                 </div>
             </section>
 
-            {/* ===== 3.jpg plein largeur ===== */}
+            {/* ===== 3.jpg bandeau (fin sur mobile) ===== */}
             <section style={{ position: "relative", zIndex: 2, background: C.blanc }}>
                 <img
                     src={asset("/3.jpg")}
                     alt=""
                     style={{
                         width: "100%",
-                        height: "min(70vh, 900px)",
+                        /* Bandeau fin en hauteur sur mobile, plus immersif sur grand écran */
+                        height: "clamp(90px, 18vw, 420px)",
                         objectFit: "cover",
                         display: "block",
+                        borderRadius: 0, // ⛔ pas de coins arrondis
                     }}
                     loading="lazy"
                 />
