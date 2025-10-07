@@ -1,311 +1,400 @@
-import React, { useMemo, useRef, useState } from "react";
-import { motion, useScroll, useTransform, MotionValue, useMotionValueEvent } from "framer-motion";
+import React, { useMemo, useRef, useEffect } from "react";
+import {
+    motion,
+    useScroll,
+    useTransform,
+    useMotionValue,
+    MotionValue,
+} from "framer-motion";
 
-/* ===== Assets ===== */
-const asset = (p: string) => `${import.meta.env.BASE_URL}${p.replace(/^\/+/, "")}`;
-
-/* ===== Palette ===== */
 const C = {
     sable: "#1b120b",
     taupe: "#5a3317",
     ocre: "#9c541e",
     blanc: "#F9F8F6",
     noir: "#121212",
+    bleu: "#102A43",
+} as const;
+
+const asset = (p: string) => `${import.meta.env.BASE_URL}${p.replace(/^\/+/, "")}`;
+const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
+
+// styles partagés (corps + sous-titres)
+const BODY_SIZE = 20; // ↑ taille du corps (avant: 18)
+const bodyText: React.CSSProperties = { fontSize: BODY_SIZE, lineHeight: 1.8, color: C.sable };
+const h3Style: React.CSSProperties = {
+    fontFamily: "'Cormorant Garamond', serif",
+    fontWeight: 300,
+    fontSize: 36,
+    marginBottom: 16,
+    color: C.ocre, // ← tous les sous-titres en ocre
 };
 
-/* ===== Gate qui bloque le scroll (overlay) ===== */
-function ScrollGate({ active }: { active: boolean }) {
-    if (!active) return null;
-    const stop = (e: React.UIEvent | React.WheelEvent | React.TouchEvent) => {
-        e.preventDefault?.();
-        (e as any).stopPropagation?.();
-    };
-    return (
-        <div
-            aria-hidden
-            onWheel={stop}
-            onTouchMove={stop}
-            onScroll={stop as any}
-            style={{
-                position: "fixed",
-                inset: 0,
-                zIndex: 9999,
-                touchAction: "none",
-                overscrollBehavior: "contain",
-                background: "transparent",
-            }}
-        />
-    );
-}
-
-/* ===== Lettres au scroll (opacité uniquement) ===== */
-function ScrollLetters({
-    text,
-    progress,
-    start = 0,
-    end = 1,
-    delayPerChar = 0.02,
-    className = "",
-}: {
-    text: string;
-    progress: MotionValue<number>;
-    start?: number;
-    end?: number;
-    delayPerChar?: number;
-    className?: string;
-}) {
-    const chars = useMemo(() => [...text], [text]);
-    return (
-        <span className={className} aria-label={text}>
-            {chars.map((ch, i) => {
-                const iStart = start + i * delayPerChar;
-                const iEnd = Math.min(end, iStart + 0.12);
-                const o = useTransform(progress, [iStart, iEnd], [0, 1], { clamp: true });
-                return (
-                    <motion.span key={`${text}-${i}`} style={{ display: "inline-block", opacity: o }}>
-                        {ch === " " ? "\u00A0" : ch}
-                    </motion.span>
-                );
-            })}
-        </span>
-    );
-}
-
-/* ===== Page ===== */
 export default function Accueil() {
-    const coverRef = useRef<HTMLElement | null>(null);
+    /* Flèche du hero */
+    const { scrollY } = useScroll();
+    const arrowOpacity = useTransform<number, number>(scrollY, [0, 100], [1, 0]);
 
-    // ——— Mobile detection (simple & suffisant) ———
-    const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
-
-    const { scrollYProgress: p } = useScroll({
-        target: coverRef,
+    /* Scène d’amorce (sticky + progress) */
+    const stageRef = useRef<HTMLDivElement | null>(null);
+    const { scrollYProgress: stage } = useScroll({
+        target: stageRef,
         offset: ["start start", "end start"],
     });
 
-    // Feuille blanche recouvre l’image (un peu plus rapide sur mobile pour garder de la marge)
-    const sheetY = useTransform(p, [0, isMobile ? 0.34 : 0.40], ["100%", "0%"]);
+    const REVEAL_WINDOW = 0.7;
+    const reveal = useTransform<number, number>(stage, [0, REVEAL_WINDOW], [0, 1], { clamp: true });
 
-    // Titre brand fade-out
-    const brandOpacity = useTransform(p, [0, 0.16, 0.28], [1, 1, 0]);
+    const phrase = "Vivez une expérience unique à travers le monde.                             ";
+    const chars = useMemo(() => Array.from(phrase), [phrase]);
+    const L = chars.length;
 
-    // Amorce : visibilité et progression (fenêtres compacts sur mobile)
-    const hookOpacity = useTransform(
-        p,
-        isMobile ? [0.46, 0.56, 0.96, 0.98] : [0.50, 0.60, 0.965, 0.985],
-        [0, 1, 1, 0],
-        { clamp: true }
-    );
-    const hookProgress = useTransform(
-        p,
-        isMobile ? [0.54, 0.96] : [0.58, 0.965],
-        [0, 1],
-        { clamp: true }
-    );
-
-    // Séquençage exact des lignes
-    const line1 = "Vivez une expérience unique";
-    const line2 = "à travers le monde.";
-
-    // timings: on garde la même vitesse lettre par lettre
-    const L2_START = 0.62;
-    const L2_END = 0.96;
-    const DELAY = 0.016;
-
-    // Scroll lock: actif tant que la 2e ligne n’est PAS terminée
-    const [locked, setLocked] = useState(true);
-    useMotionValueEvent(hookProgress, "change", (v) => {
-        // **clé**: on libère UNIQUEMENT quand hookProgress == 1 (desktop & mobile)
-        if (v >= 1) setLocked(false);
-        else setLocked(true);
+    const revealedCount: MotionValue<number> = useTransform<number, number>(reveal, (p) => {
+        const n = Math.round(p * L);
+        return n < 0 ? 0 : n > L ? L : n;
     });
 
+    const allRevealed = useTransform<number, number>(revealedCount, (n) => (n >= L ? 1 : 0));
+    const postBase = useTransform<number, number>(stage, [REVEAL_WINDOW, 1], [0, 1], { clamp: true });
+
+    const post = useMotionValue(0);
+    useEffect(() => {
+        const update = () => {
+            const a = allRevealed.get();
+            const p = postBase.get();
+            post.set(a < 1 ? 0 : clamp01(p));
+        };
+        const ua = allRevealed.on("change", update);
+        const up = postBase.on("change", update);
+        update();
+        return () => {
+            ua();
+            up();
+        };
+    }, [allRevealed, postBase, post]);
+
+    const phraseYpx = useTransform(post, [0, 1], [0, -220]);
+    const phraseYCss = useTransform(phraseYpx, (v) => `translateY(${v}px)`);
+    const titleOpacity = useTransform(stage, [0, 0.02, 0.12], [1, 1, 0]);
+
     return (
-        <>
-            <ScrollGate active={locked} />
+        <div style={{ position: "relative", isolation: "isolate" }}>
+            {/* ===== HERO FIXE ===== */}
+            <div
+                aria-hidden
+                style={{
+                    position: "fixed",
+                    inset: 0,
+                    zIndex: 0,
+                    overflow: "hidden",
+                    backgroundColor: C.noir,
+                }}
+            >
+                <img
+                    src={asset("/hero.jpg")}
+                    alt=""
+                    style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        display: "block",
+                        userSelect: "none",
+                        pointerEvents: "none",
+                    }}
+                    loading="eager"
+                    fetchPriority="high"
+                    draggable={false}
+                />
+                <div
+                    style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: 80,
+                        background: "linear-gradient(to bottom, rgba(27,18,11,0.6), rgba(27,18,11,0))",
+                        pointerEvents: "none",
+                    }}
+                />
+            </div>
 
-            {/* ===== COVER STAGE ===== */}
-            <section ref={coverRef as any} className="CoverStage">
-                <div className="CoverSticky">
-                    <div className="Cover__bg" aria-hidden>
-                        <img src={asset("hero.jpg")} alt="" />
-                    </div>
-
-                    <motion.h1 className="BrandTitle" style={{ opacity: brandOpacity }}>
+            {/* ===== TITRE + FLÈCHE ===== */}
+            <div
+                style={{
+                    position: "fixed",
+                    inset: 0,
+                    zIndex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    color: C.blanc,
+                    pointerEvents: "none",
+                    textAlign: "center",
+                    paddingTop: "38vh",
+                }}
+            >
+                <motion.div style={{ opacity: titleOpacity, width: "100%", height: "100%" }}>
+                    <motion.h1
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 1.2, ease: "easeOut" }}
+                        style={{
+                            fontFamily: "'Cormorant Garamond', serif",
+                            fontWeight: 300,
+                            letterSpacing: "0.12em",
+                            fontSize: "clamp(3.5rem, 9vw, 9rem)",
+                            margin: 0,
+                            userSelect: "none",
+                        }}
+                    >
                         Âme du Monde
                     </motion.h1>
 
-                    <motion.div className="Cover__sheet" style={{ y: sheetY }} />
-
-                    {/* Accroche FIXE (immobile), ligne 1 puis ligne 2, lettres par lettres */}
-                    <motion.div className="Hook" style={{ opacity: hookOpacity }}>
-                        <h2 className="Hook__line ocre">
-                            <ScrollLetters text={line1} progress={hookProgress} start={0.02} end={0.60} delayPerChar={DELAY} />
-                        </h2>
-                        <h3 className="Hook__line Hook__line--accent ocre">
-                            <ScrollLetters text={line2} progress={hookProgress} start={L2_START} end={L2_END} delayPerChar={DELAY} />
-                        </h3>
+                    <motion.div
+                        style={{
+                            position: "absolute",
+                            bottom: 28,
+                            left: "50%",
+                            transform: "translateX(-50%)",
+                            opacity: arrowOpacity,
+                        }}
+                    >
+                        <motion.svg
+                            width="30"
+                            height="30"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                            style={{ stroke: C.blanc, strokeWidth: 1 }}
+                            initial={{ y: 0 }}
+                            animate={{ y: [0, 8, 0] }}
+                            transition={{ duration: 2, ease: "easeInOut", repeat: Infinity }}
+                        >
+                            <path d="M12 5v14M5 12l7 7 7-7" strokeLinecap="round" strokeLinejoin="round" />
+                        </motion.svg>
                     </motion.div>
+                </motion.div>
+            </div>
+
+            {/* Spacer pour laisser le hero plein écran */}
+            <div style={{ height: "100vh", position: "relative", zIndex: 1 }} />
+
+            {/* ===== AMORCE STICKY ===== */}
+            <section
+                ref={stageRef}
+                style={{
+                    position: "relative",
+                    zIndex: 2,
+                    background: C.blanc,
+                    color: C.taupe,
+                    minHeight: "175vh",
+                }}
+            >
+                <div
+                    style={{
+                        position: "sticky",
+                        top: 0,
+                        minHeight: "100vh",
+                        display: "grid",
+                        placeItems: "center",
+                        background: C.blanc,
+                    }}
+                >
+                    <motion.h2
+                        style={{
+                            fontFamily: "'Cormorant Garamond', serif",
+                            fontWeight: 300,
+                            whiteSpace: "nowrap",
+                            fontSize: "clamp(22px, 6vw, 60px)",
+                            lineHeight: 1.1,
+                            letterSpacing: "0.02em",
+                            color: C.taupe,
+                            textAlign: "center",
+                            transform: phraseYCss,
+                        }}
+                    >
+                        {chars.map((ch, i) => (
+                            <Letter key={i} index={i} revealedCount={revealedCount} char={ch} />
+                        ))}
+                    </motion.h2>
                 </div>
             </section>
 
-            {/* ===== CONTENU (inchangé) ===== */}
-            <section className="Section Section--agency">
-                <header className="SubTitle">Notre agence</header>
-                <div className="Grid2">
-                    <div className="Col Col--text Col--textOffset">
-                        <p className="Lead Lead--tightRight">
-                            Des voyages sur-mesure, conçus pour une expérience unique, alliant authenticité et équilibre subtil.
-                            Conçus avec soin, nos itinéraires vous laissent la liberté de savourer pleinement chaque moment.
-                        </p>
-                    </div>
-                    <div className="Col Col--img Col--imgNarrow">
-                        <img className="ImgTall" src={asset("1.jpg")} alt="Ambiance — vertical" />
-                    </div>
-                </div>
-            </section>
-
-            <section className="Section Section--tightTop">
-                <div className="Grid2 Grid2--rev">
-                    <div className="Col Col--img Col--imgWide">
-                        <img className="ImgWide" src={asset("2.jpg")} alt="Rencontres — horizontal" />
-                    </div>
-                    <div className="Col Col--text">
-                        <p className="Lead Lead--tightRight">
-                            De l’organisation aux rencontres, chaque détail est façonné pour révéler l’authenticité et créer des souvenirs impérissables.
-                        </p>
-                    </div>
-                </div>
-            </section>
-
-            <section className="Section">
-                <header className="SubTitle">Notre processus</header>
-                <ol className="Steps">
-                    {[
-                        ["01", "Écoute & intention", "On part de vos envies profondes, vos rythmes et vos limites pour cadrer l’essentiel."],
-                        ["02", "Conception sur-mesure", "Un itinéraire finement ajusté : équilibre, fluidité, temps pour soi."],
-                        ["03", "Orchestration", "Logistique maîtrisée, partenaires triés, détails réglés — pour voyager l’esprit libre."],
-                        ["04", "Suivi & délicatesse", "Nous restons présents, avec tact : ajustements, attentions, sérénité jusqu’au retour."],
-                    ].map(([n, t, d]) => (
-                        <li className="Step" key={n}>
-                            <span className="Step__num">{n}</span>
-                            <div className="Step__body">
-                                <h3 className="Step__title">{t}</h3>
-                                <p className="Step__text">{d}</p>
-                            </div>
-                        </li>
-                    ))}
-                </ol>
-            </section>
-
-            <section className="Section Section--promise">
-                <header className="SubTitle">Une promesse</header>
-                <div className="Prose Prose--center">
-                    <p>
-                        Le vrai luxe ne réside pas dans l’accumulation, mais dans la justesse. Nous vous promettons des voyages sobres et raffinés,
-                        où chaque détail compte, où chaque moment a sa place. Pas de démesure inutile, seulement la beauté des lieux, la richesse des cultures,
-                        et la liberté de n’avoir rien à gérer.
+            {/* ===== CONTENU — Notre agence ===== */}
+            <section style={{ position: "relative", zIndex: 2, background: C.blanc, color: C.taupe }}>
+                <div style={{ maxWidth: 1100, margin: "0 auto", padding: "64px 20px 96px" }}>
+                    <h3 style={h3Style}>Notre agence</h3>
+                    <p style={{ ...bodyText, maxWidth: 780 }}>
+                        Des voyages sur-mesure, conçus pour une expérience unique, alliant authenticité et équilibre subtil.
+                        Conçus avec soin, nos itinéraires vous laissent la liberté de savourer pleinement chaque moment.
                     </p>
-                    <p className="Promise">Notre promesse&nbsp;: vous offrir le privilège de voyager autrement.</p>
+
+                    <div style={{ marginTop: 80, display: "flex", flexDirection: "column", gap: 80 }}>
+                        <div
+                            style={{
+                                display: "flex",
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 40,
+                                flexWrap: "wrap",
+                            }}
+                        >
+                            <img
+                                src={asset("/1.jpg")}
+                                alt=""
+                                style={{ width: "100%", maxWidth: 460, borderRadius: 12, objectFit: "cover" }}
+                            />
+                            <p style={{ ...bodyText, flex: 1 }}>
+                                De l’organisation aux rencontres, chaque détail est façonné pour révéler l’authenticité et créer
+                                des souvenirs impérissables.
+                            </p>
+                        </div>
+
+                        <div
+                            style={{
+                                display: "flex",
+                                flexDirection: "row-reverse",
+                                alignItems: "center",
+                                gap: 40,
+                                flexWrap: "wrap",
+                            }}
+                        >
+                            <img
+                                src={asset("/2.jpg")}
+                                alt=""
+                                style={{ width: "100%", maxWidth: 460, borderRadius: 12, objectFit: "cover" }}
+                            />
+                            <p style={{ ...bodyText, flex: 1 }}>
+                                Nos créateurs de voyage imaginent des itinéraires singuliers, inspirés par la beauté du monde et
+                                la richesse des cultures.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </section>
 
-            <section className="WideImageFull" aria-label="Inspiration visuelle">
-                <img src={asset("3.jpg")} alt="" />
+            {/* ===== VALEURS (fond taupe) ===== */}
+            <section
+                style={{
+                    position: "relative",
+                    zIndex: 2,
+                    background: C.taupe,
+                    color: C.blanc,
+                    padding: "120px 20px",
+                    textAlign: "center",
+                }}
+            >
+                <h3 style={{ ...h3Style, color: C.blanc /* ocre même sur fond taupe */ }}>Nos valeurs</h3>
+                <p style={{ fontSize: BODY_SIZE, lineHeight: 1.8, opacity: 0.95, maxWidth: 700, margin: "0 auto" }}>
+                    Compétence, Engagement, Polyvalence, Créativité et Durabilité — cinq piliers qui guident chacun de nos
+                    projets et chaque expérience que nous façonnons.
+                </p>
             </section>
 
-            <section className="Section Section--cta">
-                <h2 className="CTA__title CTA__title--ocre">Votre prochaine évasion commence ici</h2>
-                <p className="CTA__text">Laissez-nous transformer vos envies en un voyage unique, sculpté selon vos envies.</p>
-                <a href="#contact" className="CTA__btn">Commencer l’aventure</a>
+            {/* ===== NOUVEAU : Notre approche (sous valeurs) ===== */}
+            <section style={{ position: "relative", zIndex: 2, background: C.blanc }}>
+                <div style={{ maxWidth: 1100, margin: "0 auto", padding: "80px 20px 40px" }}>
+                    <h3 style={h3Style}>Notre approche</h3>
+                    <div style={{ display: "grid", gap: 28, gridTemplateColumns: "1fr", maxWidth: 900 }}>
+                        <p style={bodyText}>
+                            <strong style={{ color: C.taupe }}>Écoute & co-création&nbsp;:</strong> nous partons de vos envies,
+                            de vos contraintes et de votre rythme pour façonner une trame fidèle à votre style de voyage.
+                        </p>
+                        <p style={bodyText}>
+                            <strong style={{ color: C.taupe }}>Sélection exigeante&nbsp;:</strong> hébergements de caractère,
+                            expériences rares et partenaires triés sur le volet pour garantir le juste équilibre entre confort et authenticité.
+                        </p>
+                        <p style={bodyText}>
+                            <strong style={{ color: C.taupe }}>Sérénité opérationnelle&nbsp;:</strong> logistique fluide,
+                            temps de trajet optimisés et assistance humaine avant, pendant et après le voyage.
+                        </p>
+                    </div>
+                </div>
             </section>
 
-            <style>{`
-@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600&display=swap');
+            {/* ===== 3.jpg plein largeur ===== */}
+            <section style={{ position: "relative", zIndex: 2, background: C.blanc }}>
+                <img
+                    src={asset("/3.jpg")}
+                    alt=""
+                    style={{ width: "100%", height: "min(70vh, 900px)", objectFit: "cover", display: "block" }}
+                    loading="lazy"
+                />
+            </section>
 
-:root{ --c-sable:${C.sable}; --c-taupe:${C.taupe}; --c-ocre:${C.ocre}; --c-blanc:${C.blanc}; --c-noir:${C.noir}; }
-*{box-sizing:border-box}
-html,body,#root{height:100%}
-body{
-  margin:0; color:var(--c-sable); background:var(--c-blanc);
-  font-family: "Source Sans 3", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
-  font-weight: 300; line-height:1.6;
-  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+            {/* ===== NOUVEAU : Espace Contact sous 3.jpg ===== */}
+            <section
+                style={{
+                    position: "relative",
+                    zIndex: 2,
+                    background: C.blanc,
+                    padding: "56px 20px 96px",
+                }}
+            >
+                <div style={{ maxWidth: 1100, margin: "0 auto", textAlign: "center" }}>
+                    <h3 style={h3Style}>Contact</h3>
+                    <p style={{ ...bodyText, maxWidth: 760, margin: "0 auto 28px" }}>
+                        Envie de donner vie à votre prochain voyage&nbsp;? Parlons-en et dessinons, ensemble, l’itinéraire qui vous ressemble.
+                    </p>
+                    <a
+                        href="/contact#/contact"
+                        style={{
+                            display: "inline-block",
+                            padding: "14px 22px",
+                            borderRadius: 999,
+                            background: C.ocre,
+                            color: C.blanc,
+                            textDecoration: "none",
+                            fontWeight: 500,
+                            letterSpacing: "0.02em",
+                            boxShadow: "0 8px 20px rgba(156,84,30,0.25)",
+                            transition: "transform .18s ease, box-shadow .18s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
+                            (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 12px 28px rgba(156,84,30,0.32)";
+                        }}
+                        onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
+                            (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 8px 20px rgba(156,84,30,0.25)";
+                        }}
+                    >
+                        Aller à la page contact
+                    </a>
+                </div>
+            </section>
+
+            {/* ===== JOINT BLANC SOUS LE FOOTER (anti-fuite) ===== */}
+            <div
+                aria-hidden
+                style={{
+                    position: "relative",
+                    zIndex: 2,
+                    background: C.blanc,
+                    height: 180,
+                    marginBottom: -180,
+                }}
+            />
+        </div>
+    );
 }
-h1,h2,h3,.BrandTitle,.Hook__line,.SubTitle{
-  font-family:"EB Garamond", Georgia, serif; font-weight: 400; letter-spacing: 0.004em;
-}
 
-/* ===== COVER ===== */
-.CoverStage{ height: 320vh; position: relative; }
-.CoverSticky{ position: sticky; top: 0; min-height: 100vh; isolation: isolate; overflow: hidden; }
-.Cover__bg{ position:absolute; inset:0; z-index:-2; }
-.Cover__bg img{ width:100%; height:100%; object-fit:cover; object-position:center; display:block; }
-.BrandTitle{
-  position:absolute; inset:0; display:grid; place-items:center; z-index:0;
-  margin:0; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.33);
-  letter-spacing:.045em; font-weight:400; font-size:clamp(34px, 6.6vw, 92px);
-}
-.Cover__sheet{ position:absolute; inset:0; background:var(--c-blanc); z-index:1; will-change:transform; }
-
-/* Accroche FIXE (immobile) */
-.Hook{
-  position: fixed; inset: 0;
-  display: grid; place-items: center;
-  z-index: 5; pointer-events: none;
-  text-align: center; padding: 2rem;
-}
-.Hook__line{
-  margin:0; font-weight:400; letter-spacing:.002em;
-  font-size: clamp(26px, 4.3vw, 56px);
-  line-height: 1.08;
-}
-.Hook__line + .Hook__line{ margin-top:.06rem; }
-.Hook__line--accent{ font-weight:400; }
-.ocre{ color: var(--c-ocre); }
-
-/* ===== Sections ===== */
-.Section{ position:relative; background:var(--c-blanc);
-          padding:clamp(48px,8vw,96px) clamp(20px,6vw,80px); }
-.Section--tightTop{ padding-top:clamp(28px,5vw,56px); }
-.SubTitle{ font-size:clamp(20px,2.3vw,25px); font-weight:500; color: var(--c-ocre); margin-bottom:clamp(12px,2.2vw,18px); }
-
-.Grid2{ display:grid; grid-template-columns:1fr; gap:clamp(18px,3vw,28px); align-items:start; }
-@media(min-width:980px){ .Grid2{ grid-template-columns:1.05fr .95fr; gap:clamp(24px,4vw,40px); }
-                          .Grid2--rev{ grid-template-columns:.95fr 1.05fr; } }
-
-.Col--text .Lead{ font-size:clamp(16px,1.7vw,19px); color:var(--c-sable); max-width:64ch; }
-.Lead--tightRight{ max-width:48ch; line-height:1.52; margin-left:auto; }
-
-.Section--agency .SubTitle{ margin-top:clamp(18px,4vw,60px); }
-.Section--agency .Col--textOffset{ margin-top:clamp(12px,4vw,50px); }
-
-.Col--img img{ width:100%; height:auto; display:block; }
-.Col--imgNarrow .ImgTall{ width:76%; max-height:78vh; object-fit:cover; margin-left:auto; }
-.Col--imgWide{ overflow:hidden; }
-.Col--imgWide .ImgWide{ width:130%; max-width:none; transform:translateX(-15%); object-fit:cover; }
-
-.Steps{ list-style:none; margin:0; padding:0; display:grid; gap:18px; }
-@media(min-width:880px){ .Steps{ grid-template-columns:repeat(4,1fr); gap:22px; } }
-.Step{ background:#fff; border:1px solid rgba(27,18,11,.08); border-radius:10px; padding:18px; min-height:160px;
-       display:flex; gap:14px; align-items:flex-start; }
-.Step__num{ font-variant-numeric:tabular-nums; font-weight:600; color:var(--c-ocre); min-width:2.6ch; }
-.Step__title{ margin:2px 0 6px 0; font-size:16px; color:var(--c-taupe); font-family:"EB Garamond", Georgia, serif; font-weight:400; }
-.Step__text{ margin:0; font-size:14.5px; color:#4b3b30; font-weight:300; }
-
-.WideImageFull{ padding:0; margin:0; }
-.WideImageFull img{ display:block; width:100%; height:auto; }
-
-.Section--cta{ text-align:center; }
-.CTA__title{ margin:0 0 8px 0; font-size:clamp(22px,3.6vw,34px); font-weight:500; color:var(--c-taupe); }
-.CTA__title--ocre{ color: var(--c-ocre); }
-.CTA__text{ margin:0 auto 22px auto; font-size:16.5px; color:#3e2f25; max-width:62ch; }
-.CTA__btn{ display:inline-block; padding:12px 20px; border-radius:999px; background:var(--c-taupe); color:#fff; text-decoration:none;
-           transition:transform .2s ease, opacity .2s ease; }
-.CTA__btn:hover{ transform:translateY(-1px); }
-.CTA__btn:active{ transform:translateY(0); opacity:.92; }
-      `}</style>
-        </>
+/* Lettres (révélation progressive) */
+function Letter({
+    index,
+    revealedCount,
+    char,
+}: {
+    index: number;
+    revealedCount: MotionValue<number>;
+    char: string;
+}) {
+    const opacity = useTransform<number, number>(revealedCount, (n) => (index < n ? 1 : 0));
+    const safeChar = char === " " ? "\u00A0" : char;
+    return (
+        <motion.span style={{ display: "inline-block", opacity, willChange: "opacity" }}>
+            {safeChar}
+        </motion.span>
     );
 }

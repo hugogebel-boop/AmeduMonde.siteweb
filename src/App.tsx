@@ -63,8 +63,8 @@ export default function App() {
                 </nav>
             </header>
 
-            {/* Décalage pour le bandeau */}
-            <div style={{ height: 48 }} />
+            {/* ✅ Décalage pour le bandeau — sauf sur la page d’accueil */}
+            {route !== "/" && <div style={{ height: 48 }} />}
 
             {/* Contenu pages */}
             {route === "/" && <Accueil />}
@@ -72,7 +72,7 @@ export default function App() {
             {route === "/contact" && <Contact />}
             {route === "/qui-sommes-nous" && <QuiSommesNous />}
 
-            {/* Footer large et bleu */}
+            {/* Footer */}
             <footer
                 style={{
                     background: C.bleu,
@@ -80,6 +80,8 @@ export default function App() {
                     color: C.blanc,
                     fontFamily: "ui-sans-serif, system-ui, sans-serif",
                     marginTop: 100,
+                    position: "relative",   // 👈 ajoute ça
+                    zIndex: 30,
                 }}
             >
                 <div
@@ -92,7 +94,6 @@ export default function App() {
                         gap: 40,
                     }}
                 >
-                    {/* Colonne logo & intro */}
                     <div>
                         <h3
                             style={{
@@ -109,7 +110,6 @@ export default function App() {
                         </p>
                     </div>
 
-                    {/* Colonne navigation */}
                     <div>
                         <h4 style={{ fontSize: 18, marginBottom: 12, fontWeight: 600 }}>Navigation</h4>
                         <ul style={{ listStyle: "none", padding: 0, margin: 0, lineHeight: 1.8 }}>
@@ -121,7 +121,6 @@ export default function App() {
                         </ul>
                     </div>
 
-                    {/* Colonne contact */}
                     <div>
                         <h4 style={{ fontSize: 18, marginBottom: 12, fontWeight: 600 }}>Contact</h4>
                         <p style={{ margin: "6px 0" }}>Lausanne, Suisse</p>
@@ -129,7 +128,6 @@ export default function App() {
                         <p style={{ margin: "6px 0" }}>+41 21 123 45 67</p>
                     </div>
 
-                    {/* Colonne réseaux */}
                     <div>
                         <h4 style={{ fontSize: 18, marginBottom: 12, fontWeight: 600 }}>Suivez-nous</h4>
                         <p style={{ margin: "6px 0" }}>
@@ -139,7 +137,6 @@ export default function App() {
                     </div>
                 </div>
 
-                {/* Bas de page */}
                 <div
                     style={{
                         maxWidth: 1400,
