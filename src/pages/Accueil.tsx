@@ -56,19 +56,13 @@ export default function Accueil() {
     const REVEAL_WINDOW = 0.7;
     const reveal = useTransform<number, number>(stage, [0, REVEAL_WINDOW], [0, 1], { clamp: true });
 
-    const phrase = "Vivez une expérience unique à travers le monde.                                  ";
+    const phrase = "Vivez une expérience unique à travers le monde.";
 
-    const chars = useMemo(() => {
-        const words = phrase.split(" ");
-        const out: string[] = [];
-        words.forEach((w, i) => {
-            out.push(...w.split(""));
-            if (i < words.length - 1) out.push(" "); // espace visible entre mots
-        });
-        return out;
-    }, [phrase]);
+    // ===== Découpage par mots pour empêcher les sauts au milieu d’un mot =====
+    const words = useMemo(() => phrase.trim().split(/\s+/), [phrase]);
 
-    const L = chars.length;
+    // Longueur totale (lettres + espaces simples entre mots)
+    const L = useMemo(() => words.join(" ").length, [words]);
 
     const revealedCount: MotionValue<number> = prefersReduced
         ? useMotionValue(L)
@@ -78,9 +72,7 @@ export default function Accueil() {
         });
 
     const allRevealed = useTransform<number, number>(revealedCount, (n) => (n >= L ? 1 : 0));
-    const postBase = useTransform<number, number>(stage, [REVEAL_WINDOW, 1], [0, 1], {
-        clamp: true,
-    });
+    const postBase = useTransform<number, number>(stage, [REVEAL_WINDOW, 1], [0, 1], { clamp: true });
 
     const post = useMotionValue(0);
     useEffect(() => {
@@ -101,6 +93,18 @@ export default function Accueil() {
     const phraseYpx = useTransform(post, [0, 1], [0, -220]);
     const phraseYCss = useTransform(phraseYpx, (v) => `translateY(${v}px)`);
     const titleOpacity = useTransform(stage, [0, 0.02, 0.12], [1, 1, 0]);
+
+    /* ── Scroll vers le haut sur navigation (contact + footer) ───────────────── */
+    useEffect(() => {
+        // Force la page courante à scroller en haut lors d’un changement d’ancre/hash
+        const toTop = () => window.scrollTo({ top: 0, behavior: "auto" });
+        window.addEventListener("hashchange", toTop, { passive: true });
+        window.addEventListener("popstate", toTop, { passive: true });
+        return () => {
+            window.removeEventListener("hashchange", toTop);
+            window.removeEventListener("popstate", toTop);
+        };
+    }, []);
 
     return (
         <div style={{ position: "relative", isolation: "isolate" }}>
@@ -137,8 +141,7 @@ export default function Accueil() {
                         left: 0,
                         right: 0,
                         height: 80,
-                        background:
-                            "linear-gradient(to bottom, rgba(27,18,11,0.6), rgba(27,18,11,0))",
+                        background: "linear-gradient(to bottom, rgba(27,18,11,0.6), rgba(27,18,11,0))",
                         pointerEvents: "none",
                     }}
                 />
@@ -197,11 +200,7 @@ export default function Accueil() {
                             style={{ stroke: C.blanc, strokeWidth: 1 }}
                             initial={prefersReduced ? false : { y: 0 }}
                             animate={prefersReduced ? { y: 0 } : { y: [0, 8, 0] }}
-                            transition={
-                                prefersReduced
-                                    ? undefined
-                                    : { duration: 2, ease: "easeInOut", repeat: Infinity }
-                            }
+                            transition={prefersReduced ? undefined : { duration: 2, ease: "easeInOut", repeat: Infinity }}
                         >
                             <path d="M12 5v14M5 12l7 7 7-7" strokeLinecap="round" strokeLinejoin="round" />
                         </motion.svg>
@@ -212,16 +211,10 @@ export default function Accueil() {
             {/* Spacer plein écran */}
             <div style={{ height: "100vh", position: "relative", zIndex: 1 }} />
 
-            {/* ===== AMORCE STICKY ===== */}
+            {/* ===== AMORCE STICKY (wrap par mots, jamais en milieu de mot) ===== */}
             <section
                 ref={stageRef}
-                style={{
-                    position: "relative",
-                    zIndex: 2,
-                    background: C.blanc,
-                    color: C.taupe,
-                    minHeight: "170vh",
-                }}
+                style={{ position: "relative", zIndex: 2, background: C.blanc, color: C.taupe, minHeight: "170vh" }}
             >
                 <div
                     style={{
@@ -239,9 +232,10 @@ export default function Accueil() {
                         style={{
                             fontFamily: "'Cormorant Garamond', serif",
                             fontWeight: 300,
+                            // 👇 Empêche toute césure dans les mots
                             whiteSpace: "normal",
-                            wordBreak: "normal",
-                            overflowWrap: "anywhere",
+                            overflowWrap: "normal",
+                            wordBreak: "keep-all",
                             textAlign: "center",
                             maxWidth: "min(92vw, 980px)",
                             fontSize: "clamp(22px, 6.2vw, 60px)",
@@ -252,28 +246,19 @@ export default function Accueil() {
                             willChange: "transform",
                         }}
                     >
-                        {chars.map((ch, i) => (
-                            <Letter key={`${ch}-${i}`} index={i} revealedCount={revealedCount} char={ch} />
-                        ))}
+                        <Words phrase={phrase} revealedCount={revealedCount} />
                     </motion.h2>
                 </div>
             </section>
 
             {/* ===== CONTENU — Notre agence ===== */}
             <section style={{ position: "relative", zIndex: 2, background: C.blanc }}>
-                <div
-                    style={{
-                        maxWidth: 1180,
-                        margin: "0 auto",
-                        padding: "72px 24px 110px",
-                    }}
-                >
+                <div style={{ maxWidth: 1180, margin: "0 auto", padding: "72px 24px 110px" }}>
                     <h3 style={h3Style}>Notre agence</h3>
 
                     <p style={{ ...bodyText, maxWidth: 820, marginBottom: 28 }}>
-                        Des voyages sur-mesure, conçus pour une expérience unique, alliant authenticité et
-                        équilibre subtil. Conçus avec soin, nos itinéraires vous laissent la liberté de
-                        savourer pleinement chaque moment.
+                        Des voyages sur-mesure, conçus pour une expérience unique, alliant authenticité et équilibre subtil.
+                        Pensés avec soin, nos itinéraires vous laissent la liberté de savourer pleinement chaque moment.
                     </p>
 
                     <div style={{ marginTop: 90, display: "flex", flexDirection: "column", gap: 90 }}>
@@ -293,31 +278,23 @@ export default function Accueil() {
                                 style={{
                                     width: "100%",
                                     maxWidth: 520,
-                                    borderRadius: 0, // ⛔ pas de coins arrondis
+                                    borderRadius: 0,
                                     objectFit: "cover",
                                     aspectRatio: "3 / 4",
                                     flex: "0 1 480px",
                                 }}
                                 loading="lazy"
                             />
-                            <p
-                                style={{
-                                    ...bodyText,
-                                    flex: 1,
-                                    maxWidth: 720,
-                                    padding: "0 28px",
-                                }}
-                            >
-                                De l’organisation aux rencontres, chaque détail est façonné pour révéler
-                                l’authenticité et créer des souvenirs impérissables.
+                            <p style={{ ...bodyText, flex: 1, maxWidth: 720, padding: "0 28px" }}>
+                                De l’organisation aux rencontres, chaque détail révèle l’authenticité et compose des souvenirs qui
+                                restent.
                             </p>
                         </div>
 
-                        {/* Bloc 2 — Texte à gauche, 2.jpg à droite (jamais en dessous sur desktop) */}
+                        {/* Bloc 2 — Texte étroit à gauche, 2.jpg à droite, plus "plat" (moins haut) */}
                         <div
                             style={{
                                 display: "flex",
-                                flexDirection: "row", // ✅ texte à gauche, image à droite
                                 alignItems: "center",
                                 gap: 44,
                                 flexWrap: "wrap",
@@ -326,14 +303,15 @@ export default function Accueil() {
                             <p
                                 style={{
                                     ...bodyText,
-                                    flex: "1 1 340px",
-                                    maxWidth: 720,
-                                    padding: "0 28px",
+                                    flex: "0 1 360px",
+                                    maxWidth: 420, // ✅ plus étroit
+                                    padding: "0 12px 0 0",
+                                    margin: 0,
                                     order: 0,
                                 }}
                             >
-                                Nos créateurs de voyage imaginent des itinéraires singuliers, inspirés par la
-                                beauté du monde et la richesse des cultures.
+                                Nos créateurs de voyage imaginent des itinéraires singuliers, inspirés par la beauté du monde et
+                                la richesse des cultures.
                             </p>
                             <img
                                 src={asset("/2.jpg")}
@@ -342,9 +320,9 @@ export default function Accueil() {
                                     width: "100%",
                                     maxWidth: 900,
                                     flex: "1 1 60%",
-                                    borderRadius: 0, // ⛔ pas de coins arrondis
+                                    borderRadius: 0,
                                     objectFit: "cover",
-                                    aspectRatio: "4 / 3",
+                                    aspectRatio: "16 / 9", // ✅ même largeur perçue, moins de hauteur
                                     order: 1,
                                 }}
                                 loading="lazy"
@@ -376,23 +354,21 @@ export default function Accueil() {
                         color: C.blanc,
                     }}
                 >
-                    Compétence, engagement, polyvalence, créativité et durabilité guident notre manière de
-                    concevoir chaque voyage : une exigence sereine, tournée vers l’essentiel et faite pour durer.
+                    Compétence, engagement, polyvalence, créativité et durabilité guident notre manière de concevoir chaque
+                    voyage&nbsp;: une exigence sereine, tournée vers l’essentiel.
                 </p>
             </section>
 
-            {/* ===== Notre approche (nouveau design) ===== */}
+            {/* ===== Notre approche — design plus fluide/élégant ===== */}
             <section style={{ position: "relative", zIndex: 2, background: C.blanc }}>
                 <div style={{ maxWidth: 1180, margin: "0 auto", padding: "84px 24px 44px" }}>
                     <h3 style={h3Style}>Notre approche</h3>
 
-                    {/* Intro courte et élégante */}
                     <p style={{ ...bodyText, maxWidth: 820, marginBottom: 36 }}>
-                        Une méthode claire, discrète et attentive : nous co-créons avec vous, choisissons avec soin,
-                        et orchestrons l’ensemble pour que tout paraisse simple.
+                        Une méthode discrète et précise&nbsp;: nous co-créons l’itinéraire, choisissons ce qui a du sens et
+                        orchestrons chaque détail pour que tout paraisse simple.
                     </p>
 
-                    {/* Grid de 3 cartes minimalistes */}
                     <div
                         style={{
                             display: "grid",
@@ -405,17 +381,17 @@ export default function Accueil() {
                             {
                                 title: "Écoute & co-création",
                                 text:
-                                    "Vos envies, votre rythme et vos contraintes forment la trame. Nous dessinons ensemble un itinéraire fidèle à votre style.",
+                                    "Vos envies, votre rythme et vos contraintes dessinent la trame. Ensemble, nous composons un voyage fidèle à votre style.",
                             },
                             {
                                 title: "Sélection exigeante",
                                 text:
-                                    "Maisons de caractère, expériences rares et partenaires choisis avec précision pour conjuguer confort et authenticité.",
+                                    "Maisons de caractère, expériences rares et partenaires choisis avec soin pour allier confort, profondeur et authenticité.",
                             },
                             {
                                 title: "Sérénité opérationnelle",
                                 text:
-                                    "Logistique fluide, temps optimisés et présence humaine avant, pendant et après—pour voyager l’esprit libre.",
+                                    "Une logistique fluide, des temps optimisés et une présence attentive avant, pendant et après le voyage.",
                             },
                         ].map((b, i) => (
                             <motion.article
@@ -423,13 +399,14 @@ export default function Accueil() {
                                 whileHover={{ y: -3 }}
                                 transition={{ type: "spring", stiffness: 260, damping: 26 }}
                                 style={{
-                                    borderTop: `1px solid ${C.taupe}22`,
                                     padding: "22px 22px 18px",
                                     background: "#fff",
-                                    boxShadow: "0 1px 0 rgba(0,0,0,0.04)",
+                                    boxShadow: "0 6px 24px rgba(0,0,0,0.06)",
+                                    border: `1px solid ${C.taupe}14`,
+                                    borderRadius: 16,
                                     display: "flex",
                                     flexDirection: "column",
-                                    gap: 8,
+                                    gap: 10,
                                 }}
                             >
                                 <div
@@ -438,7 +415,7 @@ export default function Accueil() {
                                         fontWeight: 300,
                                         fontSize: 22,
                                         letterSpacing: "0.01em",
-                                        color: C.sable,
+                                        color: C.ocre, // ✅ sous-titres en ocre
                                     }}
                                 >
                                     {b.title}
@@ -450,40 +427,36 @@ export default function Accueil() {
                 </div>
             </section>
 
-            {/* ===== 3.jpg bandeau (fin sur mobile) ===== */}
+            {/* ===== 3.jpg bandeau fin ===== */}
             <section style={{ position: "relative", zIndex: 2, background: C.blanc }}>
                 <img
                     src={asset("/3.jpg")}
                     alt=""
                     style={{
                         width: "100%",
-                        /* Bandeau fin en hauteur sur mobile, plus immersif sur grand écran */
                         height: "clamp(90px, 18vw, 420px)",
                         objectFit: "cover",
                         display: "block",
-                        borderRadius: 0, // ⛔ pas de coins arrondis
+                        borderRadius: 0,
                     }}
                     loading="lazy"
                 />
             </section>
 
             {/* ===== Espace Contact ===== */}
-            <section
-                style={{
-                    position: "relative",
-                    zIndex: 2,
-                    background: C.blanc,
-                    padding: "64px 24px 104px",
-                }}
-            >
+            <section style={{ position: "relative", zIndex: 2, background: C.blanc, padding: "64px 24px 104px" }}>
                 <div style={{ maxWidth: 1180, margin: "0 auto", textAlign: "center" }}>
                     <h3 style={h3Style}>Contact</h3>
                     <p style={{ ...bodyText, maxWidth: 800, margin: "0 auto 30px" }}>
-                        Envie de donner vie à votre prochain voyage&nbsp;? Parlons-en et dessinons, ensemble,
-                        l’itinéraire qui vous ressemble.
+                        Envie de donner vie à votre prochain voyage&nbsp;? Parlons-en et dessinons, ensemble, l’itinéraire qui
+                        vous ressemble.
                     </p>
                     <a
                         href="/AmeduMonde.siteweb/#/contact"
+                        onClick={() => {
+                            // ✅ garantit l’arrivée en haut de la page contact
+                            requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+                        }}
                         style={{
                             display: "inline-block",
                             padding: "14px 22px",
@@ -498,13 +471,11 @@ export default function Accueil() {
                         }}
                         onMouseEnter={(e) => {
                             (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
-                            (e.currentTarget as HTMLAnchorElement).style.boxShadow =
-                                "0 12px 28px rgba(156,84,30,0.32)";
+                            (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 12px 28px rgba(156,84,30,0.32)";
                         }}
                         onMouseLeave={(e) => {
                             (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
-                            (e.currentTarget as HTMLAnchorElement).style.boxShadow =
-                                "0 8px 20px rgba(156,84,30,0.25)";
+                            (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 8px 20px rgba(156,84,30,0.25)";
                         }}
                     >
                         Aller à la page contact
@@ -527,7 +498,40 @@ export default function Accueil() {
     );
 }
 
-/* ===== Lettres (révélation progressive, compatible wrap) ===== */
+/* ======= Mots + Lettres (révélation), sans césure intra-mot ======= */
+function Words({ phrase, revealedCount }: { phrase: string; revealedCount: MotionValue<number> }) {
+    const words = phrase.trim().split(/\s+/);
+
+    // Calcul de l'index global des lettres (avec un espace simple entre mots)
+    let cursor = 0;
+    const nodes = [];
+
+    for (let w = 0; w < words.length; w++) {
+        const word = words[w];
+        const start = cursor;
+
+        nodes.push(
+            <span key={`w-${w}`} style={{ whiteSpace: "nowrap" }}>
+                {Array.from(word).map((ch, j) => (
+                    <Letter key={`w-${w}-c-${j}`} index={start + j} revealedCount={revealedCount} char={ch} />
+                ))}
+            </span>
+        );
+
+        cursor += word.length;
+
+        // espace entre mots (révélé comme un caractère)
+        if (w < words.length - 1) {
+            nodes.push(
+                <Letter key={`space-${w}`} index={cursor} revealedCount={revealedCount} char={" "} />
+            );
+            cursor += 1;
+        }
+    }
+
+    return <>{nodes}</>;
+}
+
 function Letter({
     index,
     revealedCount,
@@ -538,6 +542,7 @@ function Letter({
     char: string;
 }) {
     const isSpace = char === " ";
+    const opacity = useTransform<number, number>(revealedCount, (n) => (index < n ? 1 : 0));
 
     if (isSpace) {
         return (
@@ -554,12 +559,10 @@ function Letter({
         );
     }
 
-    const opacity = useTransform<number, number>(revealedCount, (n) => (index < n ? 1 : 0));
-
     return (
         <motion.span
             style={{
-                display: "inline-block",
+                display: "inline",
                 opacity,
                 willChange: "opacity",
                 color: C.taupe,
