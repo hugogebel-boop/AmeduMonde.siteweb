@@ -1,7 +1,8 @@
+// src/pages/OuPartir.tsx
 import React, { useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
-/* ===== Palette ===== */
+/* ============== Palette (identique à Accueil) ============== */
 const C = {
     sable: "#1b120b",
     taupe: "#5a3317",
@@ -11,244 +12,298 @@ const C = {
     bleu: "#102A43",
 } as const;
 
-/* ===== Utils ===== */
-const asset = (p: string) => `${import.meta.env.BASE_URL}${p.replace(/^\/+/, "")}`;
-const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
+const CONTACT_HREF = "#/contact";
 
-/* ===== Typo partagée ===== */
-const BODY_SIZE = 22;
+/* ============== Utils ============== */
+const asset = (p: string) => `${import.meta.env.BASE_URL}${p.replace(/^\/+/, "")}`;
+
+/* ============== Typo partagée (fluid) ============== */
 const bodyText: React.CSSProperties = {
-    fontSize: BODY_SIZE,
-    lineHeight: 1.9,
+    fontSize: "clamp(16px, 2.2vw, 20px)",
+    lineHeight: 1.85,
     color: C.taupe,
-    margin: "0 0 20px",
+    margin: "0 0 18px",
 };
 const h2Style: React.CSSProperties = {
     fontFamily: "'Cormorant Garamond', serif",
     fontWeight: 300,
-    fontSize: 36,
-    margin: "0 0 18px",
+    fontSize: "clamp(24px, 3.2vw, 36px)",
+    margin: "0 0 14px",
     color: C.ocre,
-};
-const h3Style: React.CSSProperties = {
-    fontFamily: "'Cormorant Garamond', serif",
-    fontWeight: 300,
-    fontSize: 26,
-    margin: 0,
-    color: C.ocre,
+    letterSpacing: "0.01em",
 };
 
-/* ===== Easing (tuple cubic-bezier) =====
-   Évite les erreurs TS: Easing doit être une fonction ou un tuple, pas un string.
-*/
-const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
-
-/* ===== Animations ===== */
-const fadeUp = {
-    initial: { opacity: 0, y: 14 },
+/* ============== Animations ============== */
+const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+const baseFade = {
+    initial: { opacity: 0, y: 10 },
     whileInView: { opacity: 1, y: 0 },
-    transition: { duration: 0.5, ease: EASE },
     viewport: { once: true, amount: 0.2 },
 } as const;
 
 export default function OuPartir() {
+    const reduce = useReducedMotion();
+
     useEffect(() => {
+        // Arrive toujours en haut de page sur cette vue
         window.scrollTo({ top: 0, behavior: "auto" });
     }, []);
 
     const css = `
-    html, body, #root { background: ${C.blanc}; }
-    .container { max-width: 1180px; margin: 0 auto; padding: 80px 24px 64px; }
-    .chips { display: flex; flex-wrap: wrap; gap: 10px; }
-    .chip {
-      font-size: 14px; letter-spacing: .02em; color: ${C.ocre};
-      border: 1px solid ${C.ocre}; padding: 6px 10px;
-    }
-    .grid-3 { display: grid; gap: 18px; grid-template-columns: 1fr 1fr 1fr; }
-    @media (max-width: 960px) { .grid-3 { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 640px) { .grid-3 { grid-template-columns: 1fr; } }
-    .card {
-      background: #fff;
-      border: 1px solid ${C.taupe}14;
-      box-shadow: 0 6px 24px rgba(0,0,0,.06);
-      border-radius: 16px;
-      padding: 18px 18px 16px;
-      transition: transform .18s ease, box-shadow .18s ease;
-    }
-    .card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(0,0,0,.08); }
-    .two-col { display: grid; gap: 28px; grid-template-columns: 1.1fr .9fr; }
-    @media (max-width: 900px){ .two-col { grid-template-columns: 1fr; } }
+  :root{
+    --bg:${C.blanc};
+    --fg:${C.taupe};
+    --accent:${C.ocre};
+    --container: 1200px;
+    --space-2xs: 8px; --space-xs: 14px; --space-sm: 22px;
+    --space: 56px; --space-lg: 88px; --space-xl: 120px;
+    --divider: ${C.taupe}14;
+  }
+  html, body, #root { background: var(--bg); color: var(--fg); }
+  * { box-sizing: border-box; }
+  img { display:block; max-width:100%; height:auto; }
+  .no-hyphens{ hyphens:none; -webkit-hyphens:none; -ms-hyphens:none; overflow-wrap:normal; word-break:keep-all; }
+  .container{ max-width: var(--container); margin-inline:auto; padding-inline: clamp(16px, 3vw, 28px); }
+  .section{ position:relative; z-index:2; background:var(--bg); }
+
+  /* Bouton */
+  .btn{
+    display:inline-block; padding:14px 22px; border-radius:999px;
+    background: var(--accent); color: ${C.blanc}; text-decoration:none; font-weight:500; letter-spacing:.02em;
+    transition: transform .18s ease, box-shadow .18s ease;
+    box-shadow:0 8px 20px rgba(156,84,30,0.25);
+  }
+  .btn:hover{ transform: translateY(-2px); box-shadow:0 12px 28px rgba(156,84,30,0.32); }
+  .btn:active{ transform: translateY(0); box-shadow:0 8px 20px rgba(156,84,30,0.25); }
+  :where(a,button).btn:focus-visible{ outline:3px solid ${C.ocre}; outline-offset:3px; }
+
+  /* Chips saisons */
+  .chips{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:18px; }
+  .chip{
+    font-size: clamp(12px, 1.8vw, 14px);
+    color: var(--accent); border:1px solid var(--accent);
+    padding:6px 11px; border-radius:999px; background:#fff; white-space: nowrap;
+  }
+
+  /* Liste 2 colonnes → 1 en mobile */
+  .list{ display:grid; grid-template-columns: 1fr 1fr; gap:8px 24px; }
+  @media (max-width: 900px){ .list{ grid-template-columns: 1fr; } }
+  .row{ display:flex; align-items:flex-start; gap:12px; padding:10px 0; border-top:1px solid var(--divider); }
+  .row:first-child{ border-top:none; }
+  .row-title{
+    font-family:'Cormorant Garamond', serif; font-weight:300; color:${C.ocre};
+    font-size: clamp(18px, 2.4vw, 20px); line-height:1.35; margin-top:2px; min-width:210px;
+  }
+
+  /* Grille cartes "envies" */
+  .grid-cards{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: clamp(16px, 3.2vw, 32px);
+  }
+  .card{
+    background: #fff;
+    border: 1px solid ${C.taupe}1A;
+    border-radius: 20px;
+    padding: clamp(20px, 3vw, 28px);
+    box-shadow: 0 4px 18px rgba(0,0,0,0.04);
+    display:flex; flex-direction:column; justify-content:space-between;
+    transition: box-shadow .2s ease, transform .2s ease;
+  }
+  .card:hover{ transform: translateY(-4px); box-shadow: 0 8px 26px rgba(0,0,0,0.06); }
+
+  /* Ruban image final */
+  .ruban{
+    width:100%;
+    height: clamp(110px, 18vw, 360px);
+    object-fit: cover;
+  }
+  @media (max-width:640px){
+    .ruban{ height: clamp(80px, 16vw, 140px) !important; }
+  }
+
+  .seam-white{ background:${C.blanc}; height: clamp(80px, 10vw, 140px); margin-bottom: calc(-1 * clamp(80px, 10vw, 140px)); }
   `;
 
-    const CONTACT_HREF = "/#/contact"; // adapte si tu es en hash routing
+    const transition = reduce ? { duration: 0 } : { duration: 0.45, ease: EASE };
 
     return (
         <main style={{ position: "relative", isolation: "isolate", background: C.blanc }}>
             <style>{css}</style>
 
-            {/* ── En-tête ───────────────────────────────────────────── */}
-            <section className="container" style={{ paddingTop: 100 }}>
-                <motion.h1
-                    {...fadeUp}
-                    style={{
-                        fontFamily: "'Cormorant Garamond', serif",
-                        fontWeight: 300,
-                        letterSpacing: "0.02em",
-                        fontSize: 44,
-                        margin: 0,
-                        color: C.ocre,
-                    }}
-                >
-                    Où partir&nbsp;?
-                </motion.h1>
+            {/* ===== En-tête épuré ===== */}
+            <section className="section">
+                <div className="container" style={{ paddingTop: "clamp(64px, 10vh, 110px)", paddingBottom: 36 }}>
+                    <motion.h1
+                        {...baseFade}
+                        transition={transition}
+                        className="no-hyphens"
+                        style={{
+                            fontFamily: "'Cormorant Garamond', serif",
+                            fontWeight: 300,
+                            letterSpacing: "0.02em",
+                            fontSize: "clamp(28px, 4.5vw, 42px)",
+                            margin: 0,
+                            color: C.ocre,
+                            textAlign: "center",
+                            lineHeight: 1.08,
+                        }}
+                    >
+                        Où partir&nbsp;?
+                    </motion.h1>
 
-                <motion.p
-                    {...fadeUp}
-                    transition={{ ...(fadeUp.transition as any), delay: 0.05 }}
-                    style={{ ...bodyText, maxWidth: 920, marginTop: 18 }}
-                >
-                    Il n’y a pas d’endroit parfait ni d’itinéraire imposé. Le voyage commence par une émotion, une saison,
-                    une manière d’habiter le temps. Nous concevons votre route partout dans le monde — îles lointaines, capitales
-                    vibrantes, contrées sauvages — avec la même exigence d’esthétique, d’authenticité et d’équilibre.
-                </motion.p>
-
-                <motion.div
-                    {...fadeUp}
-                    transition={{ ...(fadeUp.transition as any), delay: 0.1 }}
-                    className="chips"
-                    style={{ marginTop: 16 }}
-                >
-                    {["Méditerranée", "Afrique & déserts", "Amériques", "Asie & temples", "Nord & fjords", "Océanie"].map((t) => (
-                        <span key={t} className="chip">{t}</span>
-                    ))}
-                </motion.div>
-            </section>
-
-            {/* ── Votre envie comme point de départ ─────────────────── */}
-            <section className="container" style={{ paddingTop: 24 }}>
-                <motion.h2 {...fadeUp} style={h2Style}>Votre envie comme point de départ</motion.h2>
-                <motion.p
-                    {...fadeUp}
-                    transition={{ ...(fadeUp.transition as any), delay: 0.05 }}
-                    style={{ ...bodyText, maxWidth: 860, marginBottom: 8 }}
-                >
-                    Plutôt rivage paisible, immersion culturelle, grande traversée, voyage gourmand ou retraite en lodge&nbsp;?
-                    Nous composons un itinéraire qui vous ressemble, au bon tempo, en respectant la saison idéale et la juste
-                    part entre découvertes et respiration.
-                </motion.p>
-
-                <div className="grid-3" style={{ marginTop: 18 }}>
-                    {[
-                        { t: "Nature & horizons", d: "Volcans, fjords, déserts, forêts primaires et parcs nationaux pour renouer avec l’essentiel." },
-                        { t: "Cultures & rencontres", d: "Villes d’art, artisans, traditions, scènes locales : toucher l’âme d’un lieu." },
-                        { t: "Mers & îles", d: "Lagons, cabotage élégant, voiliers privés et escales confidentielles." },
-                        { t: "Grands voyages", d: "Routes scéniques, trains de légende, étapes choisies — le mouvement comme art." },
-                        { t: "Bien-être & lenteur", d: "Ryokans, riads, spas thermaux, lodges isolés : le luxe d’avoir du temps." },
-                        { t: "Saveurs & terroirs", d: "Chefs, vignobles, marchés et tables d’exception pour explorer par les goûts." },
-                    ].map((c, i) => (
-                        <motion.article
-                            key={c.t}
-                            className="card"
-                            initial={{ opacity: 0, y: 10 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.4, ease: EASE, delay: 0.06 * i }}
-                            viewport={{ once: true, amount: 0.2 }}
-                        >
-                            <div style={h3Style}>{c.t}</div>
-                            <p style={{ ...bodyText, margin: "8px 0 0", fontSize: 18, lineHeight: 1.8 }}>{c.d}</p>
-                        </motion.article>
-                    ))}
+                    <motion.p
+                        {...baseFade}
+                        transition={{ ...transition, delay: reduce ? 0 : 0.05 }}
+                        style={{ ...bodyText, maxWidth: "68ch", margin: "14px auto 0", textAlign: "center" }}
+                    >
+                        Chaque voyage commence par une envie, une lumière, une saison. Nous
+                        imaginons un itinéraire clair, équilibré et fidèle à votre style.
+                    </motion.p>
                 </div>
             </section>
 
-            {/* ── CTA Contact ───────────────────────────────────────── */}
-            <section style={{ background: C.taupe, color: C.blanc }}>
-                <div className="container" style={{ paddingTop: 72, paddingBottom: 92, textAlign: "center" }}>
+            {/* ===== Vos envies — cellules élégantes ===== */}
+            <section className="section" style={{ background: C.blanc }}>
+                <div className="container" style={{ padding: "40px 0 80px" }}>
                     <motion.h2
-                        {...fadeUp}
-                        style={{ ...h2Style, color: C.blanc, marginBottom: 8, fontSize: 34 }}
+                        {...baseFade}
+                        transition={transition}
+                        style={{ ...h2Style, textAlign: "center", marginBottom: "clamp(20px, 3vw, 36px)" }}
                     >
-                        Parlez-nous de votre prochaine évasion
+                        Votre envie comme point de départ
+                    </motion.h2>
+
+                    <div className="grid-cards">
+                        {[
+                            {
+                                t: "Nature et horizons",
+                                d: "Fjords, déserts, parcs nationaux, volcans. Retrouver l’essentiel dans de grands paysages.",
+                            },
+                            {
+                                t: "Cultures et rencontres",
+                                d: "Villes d’art, ateliers, marchés, traditions vivantes. Entrer dans l’âme d’un lieu.",
+                            },
+                            {
+                                t: "Mers et îles",
+                                d: "Lagons, voiliers privés, escales confidentielles. L’eau comme fil conducteur.",
+                            },
+                            {
+                                t: "Grands voyages",
+                                d: "Routes scéniques, trains de légende, étapes choisies. Le mouvement comme art de vivre.",
+                            },
+                            {
+                                t: "Bien-être et lenteur",
+                                d: "Ryokans, riads, spas thermaux, lodges isolés. Prendre du temps, vraiment.",
+                            },
+                            {
+                                t: "Saveurs et terroirs",
+                                d: "Chefs, vignobles, tables d’exception. Découvrir par le goût et les rencontres.",
+                            },
+                        ].map((x, i) => (
+                            <motion.div
+                                key={x.t}
+                                {...baseFade}
+                                transition={{ ...transition, delay: reduce ? 0 : 0.04 * i }}
+                                className="card"
+                            >
+                                <div>
+                                    <h3
+                                        style={{
+                                            fontFamily: "'Cormorant Garamond', serif",
+                                            fontWeight: 300,
+                                            color: C.ocre,
+                                            fontSize: "clamp(20px, 2.6vw, 24px)",
+                                            marginBottom: 8,
+                                            letterSpacing: "0.01em",
+                                        }}
+                                    >
+                                        {x.t}
+                                    </h3>
+                                    <p
+                                        style={{
+                                            ...bodyText,
+                                            margin: 0,
+                                        }}
+                                    >
+                                        {x.d}
+                                    </p>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* ===== CTA minimal ===== */}
+            <section className="section" style={{ background: C.taupe, color: C.blanc }}>
+                <div className="container" style={{ padding: "64px 0 72px", textAlign: "center" }}>
+                    <motion.h2
+                        {...baseFade}
+                        transition={transition}
+                        style={{ ...h2Style, color: C.blanc, marginBottom: 6, fontSize: "clamp(22px, 3vw, 32px)" }}
+                    >
+                        Parlons de votre prochaine évasion
                     </motion.h2>
                     <motion.p
-                        {...fadeUp}
-                        transition={{ ...(fadeUp.transition as any), delay: 0.05 }}
-                        style={{ ...bodyText, margin: "0 auto 22px", maxWidth: 760, color: C.blanc, opacity: 0.95 }}
+                        {...baseFade}
+                        transition={{ ...transition, delay: reduce ? 0 : 0.05 }}
+                        style={{ ...bodyText, margin: "0 auto 18px", maxWidth: "60ch", color: C.blanc, opacity: 0.95 }}
                     >
-                        Racontez-nous vos envies, vos inspirations, ou simplement une idée qui vous traverse.
-                        Nous créerons ensemble un voyage qui ne ressemble qu’à vous.
+                        Partagez vos envies et vos contraintes. Nous dessinons une route simple,
+                        juste et sur mesure.
                     </motion.p>
 
                     <motion.a
-                        {...fadeUp}
-                        transition={{ ...(fadeUp.transition as any), delay: 0.1 }}
+                        {...baseFade}
+                        transition={{ ...transition, delay: reduce ? 0 : 0.1 }}
                         href={CONTACT_HREF}
                         onClick={() => requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }))}
-                        style={{
-                            display: "inline-block",
-                            padding: "14px 22px",
-                            borderRadius: 999,
-                            background: C.ocre,
-                            color: C.blanc,
-                            textDecoration: "none",
-                            fontWeight: 500,
-                            letterSpacing: "0.02em",
-                            boxShadow: "0 8px 20px rgba(156,84,30,0.25)",
-                            transition: "transform .18s ease, box-shadow .18s ease",
-                        }}
-                        onMouseEnter={(e) => {
-                            (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
-                            (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 12px 28px rgba(156,84,30,0.32)";
-                        }}
-                        onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
-                            (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 8px 20px rgba(156,84,30,0.25)";
-                        }}
+                        className="btn"
                     >
                         Nous écrire
                     </motion.a>
                 </div>
             </section>
 
-            {/* ── Saisons comme boussole ────────────────────────────── */}
-            <section className="container" style={{ paddingTop: 96, paddingBottom: 100 }}>
-                <div className="two-col">
-                    <div>
-                        <motion.h2 {...fadeUp} style={h2Style}>Les saisons comme boussole</motion.h2>
-                        <motion.p
-                            {...fadeUp}
-                            transition={{ ...(fadeUp.transition as any), delay: 0.05 }}
-                            style={{ ...bodyText, marginTop: 6 }}
-                        >
-                            Nous aimons voyager en harmonie avec la nature&nbsp;: les saisons inspirent le
-                            tempo de chaque projet. Lumières de l’hiver, printemps florissant, été arctique
-                            ou automne doré — il existe un moment idéal pour chaque lieu.
-                            <br />
-                            <br />
-                            Et lorsque la météo change, nous réinventons la route, pour préserver la beauté
-                            du voyage plutôt que le calendrier.
-                        </motion.p>
-                    </div>
-
-                    <motion.aside
-                        {...fadeUp}
-                        transition={{ ...(fadeUp.transition as any), delay: 0.1 }}
-                        className="card"
-                        style={{ borderRadius: 12 }}
+            {/* ===== Les saisons + bulles ===== */}
+            <section className="section">
+                <div className="container" style={{ padding: "56px 0 80px", textAlign: "center" }}>
+                    <motion.h2 {...baseFade} transition={transition} style={{ ...h2Style, marginBottom: 12 }}>
+                        Les saisons comme boussole
+                    </motion.h2>
+                    <motion.p
+                        {...baseFade}
+                        transition={{ ...transition, delay: reduce ? 0 : 0.05 }}
+                        style={{ ...bodyText, maxWidth: "68ch", margin: "0 auto" }}
                     >
-                        <div style={{ ...h3Style, marginBottom: 10 }}>Exemples de saisons</div>
-                        <ul style={{ margin: 0, paddingLeft: 18, color: C.taupe, lineHeight: "28px", fontSize: 18 }}>
-                            <li>Nord & fjords — juin à septembre</li>
-                            <li>Afrique australe — mai à octobre</li>
-                            <li>Asie culturelle — selon moussons</li>
-                            <li>Méditerranée — avril/mai & septembre/octobre</li>
-                        </ul>
-                    </motion.aside>
+                        Voyager en accord avec la saison rend tout plus fluide. Nous choisissons le bon moment
+                        pour amplifier la beauté du lieu et préserver votre sérénité.
+                    </motion.p>
+
+                    <motion.div
+                        {...baseFade}
+                        transition={{ ...transition, delay: reduce ? 0 : 0.1 }}
+                        className="chips"
+                    >
+                        {[
+                            "Nord & fjords · juin à septembre",
+                            "Afrique australe · mai à octobre",
+                            "Asie culturelle · selon moussons",
+                            "Méditerranée · avril–mai & septembre–octobre",
+                        ].map((s) => (
+                            <span key={s} className="chip">{s}</span>
+                        ))}
+                    </motion.div>
                 </div>
             </section>
 
-            {/* ── Joint anti-fuite ─────────────────────────────────── */}
-            <div aria-hidden style={{ background: C.blanc, height: 160, marginBottom: -160 }} />
+            {/* ===== Ruban image final ===== */}
+            <section className="section" aria-label="Bandeau visuel">
+                <img src={asset("/3.jpg")} alt="" className="ruban" loading="lazy" />
+            </section>
+
+            <div className="seam-white" aria-hidden />
         </main>
     );
 }

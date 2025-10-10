@@ -2,16 +2,39 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Âme du Monde</title>
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Âme du Monde — Voyages sur mesure, authentiques et raffinés, imaginés autour de vos envies, vos saisons et vos horizons." />
+    <meta name="theme-color" content="#F9F8F6" />
+    <meta name="color-scheme" content="light" />
+    <meta name="format-detection" content="telephone=no" />
 
-    <!-- Google Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&display=swap" rel="stylesheet">
+    <title>Âme du Monde · Voyages sur mesure</title>
+
+    <!-- Préchargement typographique -->
+    <link rel="preload"
+          href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&display=swap"
+          as="style"
+          onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript>
+        <link rel="stylesheet"
+              href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&display=swap" />
+    </noscript>
+
+    <!-- Favicon et icônes -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Manifest pour PWA ou ajout à l’écran d’accueil -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Préchargement image hero (optimise LCP) -->
+    <link rel="preload" as="image" href="/hero.jpg" />
 
     <!-- Le build Vite réécrira /src/main.tsx selon base -->
 </head>
-  <body>
+<body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-  </body>
+</body>
 </html>
