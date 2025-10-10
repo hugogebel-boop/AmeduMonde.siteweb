@@ -283,3 +283,81 @@ input, select, textarea, button {
 .is-mobile-active {
     all: unset;
 }
+/* =========================================
+   💡 BOOST MOBILE (≤ 640px)
+   - Typo plus grande
+   - Line-height plus généreux
+   - Marges latérales sur le texte
+   - Padding interne pour les blocs texte
+   ========================================= */
+@media (max-width: 640px) {
+    html {
+        font-size: 20px !important; /* avant : 24px */
+    }
+
+    body {
+        font-size: clamp(17px, 4.8vw, 20px) !important;
+        line-height: 1.8 !important;
+    }
+
+    /* Titres et paragraphes → marge latérale */
+    h1,
+    h2,
+    h3,
+    h4,
+    p {
+        padding-inline: 12px !important;
+    }
+
+    h1 {
+        font-size: clamp(32px, 8vw, 40px) !important; /* avant : 38–48px */
+        line-height: 1.15 !important;
+    }
+
+    h2 {
+        font-size: clamp(27px, 7vw, 34px) !important; /* avant : 32–40px */
+        line-height: 1.2 !important;
+    }
+
+    h3 {
+        font-size: clamp(22px, 6.2vw, 30px) !important; /* avant : 25–34px */
+        line-height: 1.25 !important;
+    }
+
+    h4 {
+        font-size: clamp(20px, 5.4vw, 26px) !important; /* avant : 22–29px */
+        line-height: 1.28 !important;
+    }
+
+    p {
+        font-size: clamp(17px, 4.6vw, 20px) !important; /* avant : 19–22px */
+        line-height: 1.8 !important;
+    }
+
+    /* Cellules et blocs de texte → marge + padding interne */
+    .cellule,
+    .texte,
+    .content-block,
+    .text-block {
+        margin-inline: 10px !important; /* avant : 12px */
+        padding: 10px !important; /* avant : 12px */
+        border-radius: 6px;
+    }
+
+    /* iOS: lisibilité & anti-zoom */
+    input,
+    select,
+    textarea,
+    button {
+        font-size: 17px !important; /* avant : 19px */
+        line-height: 1.4 !important;
+    }
+}
+
+/* =========================================
+   ⚠️ CLEANUP
+   ========================================= */
+.mobile-active,
+.is-mobile-active {
+    all: unset;
+}
