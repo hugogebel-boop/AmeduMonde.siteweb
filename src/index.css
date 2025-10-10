@@ -224,7 +224,7 @@ input, select, textarea, button {
 @media (max-width: 640px) {
     html {
         /* ↑ grossit toutes les tailles Tailwind (basées sur rem) */
-        font-size: 300px !important; /* passe à 20px si tu veux encore plus */
+        font-size: 30px !important; /* passe à 20px si tu veux encore plus */
     }
 
     body {

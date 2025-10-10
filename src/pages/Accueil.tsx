@@ -229,7 +229,8 @@ export default function Accueil() {
     }, []);
 
     return (
-        <div style={{ position: "relative", isolation: "isolate" }}>
+        <main className="relative" style={{ isolation: "isolate" }}>
+
             <style>{css}</style>
 
             {/* ========== HERO FIXE ========== */}
@@ -329,7 +330,7 @@ export default function Accueil() {
             <div style={{ height: "100vh", position: "relative", zIndex: 1 }} />
 
             {/* ========== AMORCE STICKY ========== */}
-            <section ref={stageRef} className="section" style={{ minHeight: "170vh" }}>
+            <section ref={stageRef} className="section relative" style={{ minHeight: "170vh" }}>
                 <div
                     className="container"
                     style={{
@@ -561,7 +562,7 @@ export default function Accueil() {
                     marginBottom: -160,
                 }}
             />
-        </div>
+        </main>
     );
 }
 
