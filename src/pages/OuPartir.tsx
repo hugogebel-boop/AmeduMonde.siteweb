@@ -67,16 +67,43 @@ export default function OuPartir() {
   .section{ position:relative; z-index:2; background:var(--bg); }
 
   /* Bouton */
-  .btn{
-    display:inline-block; padding:14px 22px; border-radius:999px;
-    background: var(--accent); color: ${C.blanc}; text-decoration:none; font-weight:500; letter-spacing:.02em;
-    transition: transform .18s ease, box-shadow .18s ease;
-    box-shadow:0 8px 20px rgba(156,84,30,0.25);
-  }
-  .btn:hover{ transform: translateY(-2px); box-shadow:0 12px 28px rgba(156,84,30,0.32); }
-  .btn:active{ transform: translateY(0); box-shadow:0 8px 20px rgba(156,84,30,0.25); }
-  :where(a,button).btn:focus-visible{ outline:3px solid ${C.ocre}; outline-offset:3px; }
-
+  /* Bouton – protège la couleur du label au hover dans tous les contextes */
+.btn{
+  --btn-bg: var(--accent);
+  --btn-fg: #F9F8F6; /* blanc cassé */
+  display:inline-block; padding:14px 22px; border-radius:999px;
+  background: var(--btn-bg);
+  color: var(--btn-fg); -webkit-text-fill-color: var(--btn-fg); /* Safari */
+  text-decoration:none; font-weight:500; letter-spacing:.02em;
+  box-shadow:0 8px 20px rgba(156,84,30,0.25);
+  transition:
+    transform .18s ease,
+    box-shadow .18s ease,
+    background-color .18s ease,
+    color .18s ease;
+}
+.btn:hover,
+.btn:focus{
+  /* le fond peut bouger, mais la couleur du texte reste verrouillée */
+  color: var(--btn-fg) !important;
+  -webkit-text-fill-color: var(--btn-fg) !important;
+  transform: translateY(-2px);
+  box-shadow:0 12px 28px rgba(156,84,30,0.32);
+}
+.btn:active{
+  transform: translateY(0);
+  box-shadow:0 8px 20px rgba(156,84,30,0.25);
+}
+/* Empêche qu'un style global change la couleur d'un enfant (span, svg, etc.) */
+.btn *{
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+/* Accessibilité focus visible inchangée */
+:where(a, button).btn:focus-visible{
+  outline: 3px solid #9c541e; /* C.ocre */
+  outline-offset: 3px;
+}
   /* Chips saisons */
   .chips{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:18px; }
   .chip{

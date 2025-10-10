@@ -11,7 +11,7 @@ const C = {
     ocre: "#9c541e",
     blanc: "#F9F8F6",
     noir: "#121212",
-    bleu: "#7c9fb9", // bleu du footer
+    bleu: "#7c9fb9",
 } as const;
 
 type RouteKey = "/" | "/ou-partir" | "/contact" | "/mentions";
@@ -58,7 +58,7 @@ export default function App() {
     const [route, setRoute] = useState<RouteKey>(getHashRoute());
     const [menuOpen, setMenuOpen] = useState(false);
 
-    // détecte desktop (>=1024px) pour contrôler l’affichage du hamburger
+    // détecte desktop (>=1024px)
     const [isDesktop, setIsDesktop] = useState<boolean>(
         typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)").matches : false
     );
@@ -195,7 +195,7 @@ export default function App() {
                         </a>
                     </div>
 
-                    {/* Nav desktop (uniquement si desktop) */}
+                    {/* Nav desktop */}
                     {isDesktop ? (
                         <div style={{ alignItems: "center", justifyContent: "center", display: "flex", gap: 8 }}>
                             <NavLink to="/">Accueil</NavLink>
@@ -209,43 +209,42 @@ export default function App() {
                     {/* Espace à droite */}
                     <div />
                 </nav>
-
-                {/* Menu mobile en overlay (seulement mobile) */}
-                {!isDesktop && menuOpen && (
-                    <div
-                        role="dialog"
-                        aria-modal="true"
-                        style={{
-                            position: "fixed",
-                            inset: 0,
-                            top: headerHeight,
-                            background: "rgba(249,248,246,0.96)",
-                            backdropFilter: "blur(4px)",
-                            WebkitBackdropFilter: "blur(4px)",
-                            zIndex: 50,
-                        }}
-                        onClick={() => setMenuOpen(false)}
-                    >
-                        <div
-                            className="container"
-                            style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 10,
-                                paddingBlock: 16,
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <NavLink to="/">Accueil</NavLink>
-                            <NavLink to="/ou-partir">Où partir</NavLink>
-                            <NavLink to="/contact">Contact</NavLink>
-                        </div>
-                    </div>
-                )}
             </header>
 
-            {/* Décalage pour le bandeau */}
-            {route !== "/" && <div style={{ height: headerHeight }} />}
+            {/* ─── Spacer sous le header (toujours présent) ─── */}
+            <div style={{ height: headerHeight }} />
+
+            {/* ─── Menu mobile “pushdown” (pousse le contenu) ─── */}
+            {!isDesktop && (
+                <div
+                    aria-hidden={!menuOpen}
+                    style={{
+                        overflow: "hidden",
+                        maxHeight: menuOpen ? 240 : 0, // ajuste si tu as plus d’items
+                        transition: "max-height .28s ease",
+                        background: "rgba(249,248,246,0.96)",
+                        borderBottom: menuOpen ? `1px solid ${C.taupe}22` : "1px solid transparent",
+                        backdropFilter: "blur(4px)",
+                        WebkitBackdropFilter: "blur(4px)",
+                    }}
+                >
+                    <div
+                        className="container"
+                        style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 10,
+                            padding: menuOpen ? "12px clamp(12px,3vw,24px) 16px" : "0 clamp(12px,3vw,24px)",
+                            maxWidth: 1200,
+                            margin: "0 auto",
+                        }}
+                    >
+                        <NavLink to="/">Accueil</NavLink>
+                        <NavLink to="/ou-partir">Où partir</NavLink>
+                        <NavLink to="/contact">Contact</NavLink>
+                    </div>
+                </div>
+            )}
 
             {/* ─── Pages ───────────────────────────── */}
             {route === "/" && <Accueil />}
@@ -281,7 +280,7 @@ export default function App() {
                                 fontSize: 28,
                                 marginBottom: 16,
                                 fontWeight: 300,
-                                color: C.blanc, // titre blanc
+                                color: C.blanc,
                             }}
                         >
                             Âme du Monde
@@ -293,14 +292,7 @@ export default function App() {
                     </div>
 
                     <div>
-                        <h4
-                            style={{
-                                fontSize: 18,
-                                marginBottom: 12,
-                                fontWeight: 600,
-                                color: C.blanc, // SOUS-TITRE EN BLANC
-                            }}
-                        >
+                        <h4 style={{ fontSize: 18, marginBottom: 12, fontWeight: 600, color: C.blanc }}>
                             Navigation
                         </h4>
                         <ul style={{ listStyle: "none", padding: 0, margin: 0, lineHeight: 1.9 }}>
@@ -327,22 +319,12 @@ export default function App() {
                     </div>
 
                     <div>
-                        <h4
-                            style={{
-                                fontSize: 18,
-                                marginBottom: 12,
-                                fontWeight: 600,
-                                color: C.blanc, // SOUS-TITRE EN BLANC
-                            }}
-                        >
+                        <h4 style={{ fontSize: 18, marginBottom: 12, fontWeight: 600, color: C.blanc }}>
                             Contact
                         </h4>
                         <p style={{ margin: "6px 0" }}>Lausanne, Suisse</p>
                         <p style={{ margin: "6px 0" }}>
-                            <a
-                                href="mailto:contact@amedumonde.com"
-                                style={{ color: C.blanc, textDecoration: "none" }}
-                            >
+                            <a href="mailto:contact@amedumonde.com" style={{ color: C.blanc, textDecoration: "none" }}>
                                 contact@amedumonde.com
                             </a>
                         </p>
@@ -354,14 +336,7 @@ export default function App() {
                     </div>
 
                     <div>
-                        <h4
-                            style={{
-                                fontSize: 18,
-                                marginBottom: 12,
-                                fontWeight: 600,
-                                color: C.blanc, // SOUS-TITRE EN BLANC
-                            }}
-                        >
+                        <h4 style={{ fontSize: 18, marginBottom: 12, fontWeight: 600, color: C.blanc }}>
                             Suivez-nous
                         </h4>
                         <p style={{ margin: "6px 0" }}>
