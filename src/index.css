@@ -1,4 +1,4 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -57,22 +57,24 @@ svg {
     height: auto;
 }
 
-/* �vite les scrollbars horizontaux ind�sirables */
+/* Évite les scrollbars horizontaux indésirables */
 body {
     overflow-x: hidden;
 }
 
 /* =========================================
-   TYPOGRAPHIE
+   TYPOGRAPHIE (desktop/tablette par défaut)
    ========================================= */
 body {
     font-family: 'Cormorant Garamond', serif;
-    line-height: 1.7;
+    /* ↑ garde ton upper bound et monte légèrement le min pour desktop/tablette */
     font-size: clamp(16px, 2.1vw, 19px);
+    line-height: 1.7;
     letter-spacing: 0.01em;
     background: var(--blanc);
     color: var(--taupe);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, h5 {
@@ -87,7 +89,7 @@ p {
 }
 
 /* =========================================
-   ACCESSIBILIT�
+   ACCESSIBILITÉ
    ========================================= */
 :focus-visible {
     outline: 3px solid var(--ocre);
@@ -143,6 +145,11 @@ button {
     cursor: pointer;
 }
 
+/* Empêche le zoom iOS sur focus */
+input, select, textarea, button {
+    font-size: 16px;
+}
+
 /* =========================================
    SCROLLBAR (Desktop)
    ========================================= */
@@ -159,5 +166,48 @@ button {
         background-color: var(--taupe);
         border-radius: 8px;
         border: 2px solid var(--blanc);
+    }
+}
+
+/* =========================================
+   💡 BOOST MOBILE (≤ 640px)
+   - Base rem ↑
+   - Body min ↑ via clamp
+   - Titres légèrement plus grands
+   - Line-height un poil plus généreux
+   ========================================= */
+@media (max-width: 640px) {
+    html {
+        /* ↑ fait grandir toutes les tailles rem (incl. Tailwind) */
+        font-size: 18px; /* était 16px implicite */
+    }
+
+    body {
+        /* ↑ garantit un minimum confortable sur mobile */
+        font-size: clamp(18px, 4.6vw, 20px);
+        line-height: 1.8;
+    }
+
+    /* Échelle titres mobile — sobres mais plus lisibles */
+    h1 {
+        font-size: clamp(28px, 7vw, 34px);
+    }
+
+    h2 {
+        font-size: clamp(24px, 6vw, 30px);
+    }
+
+    h3 {
+        font-size: clamp(20px, 5.2vw, 26px);
+    }
+
+    h4 {
+        font-size: clamp(18px, 4.8vw, 22px);
+    }
+
+    /* Empêche le zoom iOS tout en restant lisible */
+    input, select, textarea, button {
+        font-size: 17px; /* ≥16px pour iOS + un chouïa plus grand */
+        line-height: 1.4;
     }
 }
