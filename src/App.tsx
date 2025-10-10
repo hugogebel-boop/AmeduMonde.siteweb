@@ -145,11 +145,16 @@ export default function App() {
 
     return (
         <div
-            className="font-[Cormorant_Garamond]"
+            className="relative font-[Cormorant_Garamond]"
             style={{ background: C.blanc, color: C.taupe, minHeight: "100dvh" }}
         >
             {/* ─── Header (sticky, ne rétrécit pas) ─────────────────────────── */}
-            <header className="app-header" role="banner" aria-label="En-tête principal">
+            <header className="app-header" role="banner" aria-label="En-tête principal" style={{
+                position: "sticky",             // ← ajouté
+                top: 0,                         // ← ajouté
+                zIndex: 40,                     // ← ajouté (au-dessus du contenu)
+                background: C.blanc,            // ← ajouté (évite transparence)
+            }}>
                 <nav
                     aria-label="Navigation principale"
                     className="container"

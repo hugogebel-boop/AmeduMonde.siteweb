@@ -219,47 +219,59 @@ input, select, textarea, button {
    💡 BOOST MOBILE (≤ 640px)
    - Typo plus grande
    - Line-height plus généreux
-   - (enlève l’ancien "MOBILE ACTIVE")
+   - Marges latérales sur le texte uniquement
    ========================================= */
 @media (max-width: 640px) {
     html {
-        /* ↑ grossit toutes les tailles Tailwind (basées sur rem) */
-        font-size: 30px !important; /* passe à 20px si tu veux encore plus */
+        font-size: 24px !important;
     }
 
     body {
-        font-size: clamp(19px, 5vw, 22px) !important;
+        font-size: clamp(20px, 5.5vw, 24px) !important;
         line-height: 1.85 !important;
     }
 
     h1 {
-        font-size: clamp(34px, 8.5vw, 42px) !important;
+        font-size: clamp(38px, 9vw, 48px) !important;
         line-height: 1.15 !important;
+        padding-inline: 12px !important; /* marge sur les bords */
     }
 
     h2 {
-        font-size: clamp(28px, 7.2vw, 36px) !important;
+        font-size: clamp(32px, 8vw, 40px) !important;
         line-height: 1.2 !important;
+        padding-inline: 12px !important;
     }
 
     h3 {
-        font-size: clamp(22px, 6vw, 30px) !important;
+        font-size: clamp(25px, 6.8vw, 34px) !important;
         line-height: 1.25 !important;
+        padding-inline: 12px !important;
     }
 
     h4 {
-        font-size: clamp(20px, 5.4vw, 26px) !important;
+        font-size: clamp(22px, 6vw, 29px) !important;
         line-height: 1.28 !important;
+        padding-inline: 12px !important;
     }
 
     p {
-        font-size: clamp(18px, 4.8vw, 20px) !important;
+        font-size: clamp(19px, 5.2vw, 22px) !important;
         line-height: 1.85 !important;
+        padding-inline: 12px !important;
+    }
+
+    /* Cellules / blocs de texte structurés */
+    .cellule,
+    .texte,
+    .content-block,
+    .text-block {
+        padding-inline: 12px !important;
     }
 
     /* iOS: lisibilité & anti-zoom */
     input, select, textarea, button {
-        font-size: 18px !important;
+        font-size: 19px !important;
         line-height: 1.45 !important;
     }
 }
@@ -267,7 +279,6 @@ input, select, textarea, button {
 /* =========================================
    ⚠️ CLEANUP
    ========================================= */
-/* Désactive tout ancien état "mobile-active" résiduel */
 .mobile-active,
 .is-mobile-active {
     all: unset;
