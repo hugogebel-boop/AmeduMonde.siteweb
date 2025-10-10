@@ -1,5 +1,5 @@
 // src/App.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Accueil from "./pages/Accueil";
 import OuPartir from "./pages/OuPartir";
 import Contact from "./pages/Contact";
@@ -11,11 +11,12 @@ const C = {
     ocre: "#9c541e",
     blanc: "#F9F8F6",
     noir: "#121212",
-    bleu: "#7c9fb9",
+    bleu: "#7c9fb9", // bleu du footer
 } as const;
 
 type RouteKey = "/" | "/ou-partir" | "/contact" | "/mentions";
 
+/* ====== Routing util ====== */
 function getHashRoute(): RouteKey {
     const h = window.location.hash.replace(/^#/, "") || "/";
     const allowed: RouteKey[] = ["/", "/ou-partir", "/contact", "/mentions"];
@@ -60,7 +61,9 @@ export default function App() {
 
     // détecte desktop (>=1024px)
     const [isDesktop, setIsDesktop] = useState<boolean>(
-        typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)").matches : false
+        typeof window !== "undefined"
+            ? window.matchMedia("(min-width: 1024px)").matches
+            : false
     );
     useEffect(() => {
         const mq = window.matchMedia("(min-width: 1024px)");
@@ -69,6 +72,26 @@ export default function App() {
         mq.addEventListener?.("change", onChange);
         return () => mq.removeEventListener?.("change", onChange);
     }, []);
+
+    // mesure de la hauteur naturelle du menu mobile (pour l’animation + spacer)
+    const menuRef = useRef<HTMLDivElement | null>(null);
+    const [menuNaturalH, setMenuNaturalH] = useState(0);
+
+    useEffect(() => {
+        const measure = () => {
+            if (menuRef.current) setMenuNaturalH(menuRef.current.scrollHeight);
+        };
+        measure();
+        window.addEventListener("resize", measure);
+        // remesure quand on ouvre/ferme (contenu potentiellement différent)
+        // et quand la route change (le style actif peut modifier la hauteur)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        return () => window.removeEventListener("resize", measure);
+    }, []);
+
+    useEffect(() => {
+        if (menuRef.current) setMenuNaturalH(menuRef.current.scrollHeight);
+    }, [menuOpen, route]);
 
     /* ====== Navigation util ====== */
     const go = (href: RouteKey) => {
@@ -91,7 +114,7 @@ export default function App() {
             insetInline: 0,
             top: 0,
             height: headerHeight,
-            zIndex: 40,
+            zIndex: 40, // au-dessus de tout
             backdropFilter: "blur(8px)",
             WebkitBackdropFilter: "blur(8px)",
             background: "rgba(249,248,246,0.78)",
@@ -113,7 +136,13 @@ export default function App() {
         transition: "background .18s ease, color .18s ease, border-color .18s ease",
     });
 
-    const NavLink = ({ to, children }: { to: RouteKey; children: React.ReactNode }) => (
+    const NavLink = ({
+        to,
+        children,
+    }: {
+        to: RouteKey;
+        children: React.ReactNode;
+    }) => (
         <a
             href={`#${to}`}
             onClick={(e) => {
@@ -150,7 +179,7 @@ export default function App() {
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         {!isDesktop && (
                             <button
-                                aria-label="Ouvrir le menu"
+                                aria-label={menuOpen ? "Fermer le menu" : "Ouvrir le menu"}
                                 aria-expanded={menuOpen}
                                 onClick={() => setMenuOpen((v) => !v)}
                                 style={{
@@ -167,7 +196,11 @@ export default function App() {
                             >
                                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                                     <path
-                                        d={menuOpen ? "M6 6l12 12M18 6L6 18" : "M4 7h16M4 12h16M4 17h16"}
+                                        d={
+                                            menuOpen
+                                                ? "M6 6l12 12M18 6L6 18"
+                                                : "M4 7h16M4 12h16M4 17h16"
+                                        }
                                         stroke={C.taupe}
                                         strokeWidth="1.6"
                                         strokeLinecap="round"
@@ -197,7 +230,14 @@ export default function App() {
 
                     {/* Nav desktop */}
                     {isDesktop ? (
-                        <div style={{ alignItems: "center", justifyContent: "center", display: "flex", gap: 8 }}>
+                        <div
+                            style={{
+                                alignItems: "center",
+                                justifyContent: "center",
+                                display: "flex",
+                                gap: 8,
+                            }}
+                        >
                             <NavLink to="/">Accueil</NavLink>
                             <NavLink to="/ou-partir">Où partir</NavLink>
                             <NavLink to="/contact">Contact</NavLink>
@@ -211,30 +251,36 @@ export default function App() {
                 </nav>
             </header>
 
-            {/* ─── Spacer sous le header (toujours présent) ─── */}
-            <div style={{ height: headerHeight }} />
-
-            {/* ─── Menu mobile “pushdown” (pousse le contenu) ─── */}
+            {/* ─── Menu mobile (fixé sous le header) ─── */}
             {!isDesktop && (
                 <div
                     aria-hidden={!menuOpen}
                     style={{
+                        position: "fixed",
+                        top: headerHeight,
+                        left: 0,
+                        right: 0,
+                        maxHeight: menuOpen ? menuNaturalH : 0,
                         overflow: "hidden",
-                        maxHeight: menuOpen ? 240 : 0, // ajuste si tu as plus d’items
                         transition: "max-height .28s ease",
                         background: "rgba(249,248,246,0.96)",
-                        borderBottom: menuOpen ? `1px solid ${C.taupe}22` : "1px solid transparent",
+                        borderBottom: menuOpen
+                            ? `1px solid ${C.taupe}22`
+                            : "1px solid transparent",
                         backdropFilter: "blur(4px)",
                         WebkitBackdropFilter: "blur(4px)",
+                        zIndex: 39, // juste sous le header (40)
                     }}
                 >
+                    {/* Contenu mesuré en permanence (pour scrollHeight) */}
                     <div
+                        ref={menuRef}
                         className="container"
                         style={{
                             display: "flex",
                             flexDirection: "column",
                             gap: 10,
-                            padding: menuOpen ? "12px clamp(12px,3vw,24px) 16px" : "0 clamp(12px,3vw,24px)",
+                            padding: "12px clamp(12px,3vw,24px) 16px",
                             maxWidth: 1200,
                             margin: "0 auto",
                         }}
@@ -245,6 +291,14 @@ export default function App() {
                     </div>
                 </div>
             )}
+
+            {/* ─── Spacer sous le header (pousse le contenu quand menu ouvert) ─── */}
+            <div
+                style={{
+                    height:
+                        headerHeight + (!isDesktop && menuOpen ? menuNaturalH : 0),
+                }}
+            />
 
             {/* ─── Pages ───────────────────────────── */}
             {route === "/" && <Accueil />}
@@ -292,7 +346,9 @@ export default function App() {
                     </div>
 
                     <div>
-                        <h4 style={{ fontSize: 18, marginBottom: 12, fontWeight: 600, color: C.blanc }}>
+                        <h4
+                            style={{ fontSize: 18, marginBottom: 12, fontWeight: 600, color: C.blanc }}
+                        >
                             Navigation
                         </h4>
                         <ul style={{ listStyle: "none", padding: 0, margin: 0, lineHeight: 1.9 }}>
@@ -319,7 +375,9 @@ export default function App() {
                     </div>
 
                     <div>
-                        <h4 style={{ fontSize: 18, marginBottom: 12, fontWeight: 600, color: C.blanc }}>
+                        <h4
+                            style={{ fontSize: 18, marginBottom: 12, fontWeight: 600, color: C.blanc }}
+                        >
                             Contact
                         </h4>
                         <p style={{ margin: "6px 0" }}>Lausanne, Suisse</p>
@@ -336,7 +394,9 @@ export default function App() {
                     </div>
 
                     <div>
-                        <h4 style={{ fontSize: 18, marginBottom: 12, fontWeight: 600, color: C.blanc }}>
+                        <h4
+                            style={{ fontSize: 18, marginBottom: 12, fontWeight: 600, color: C.blanc }}
+                        >
                             Suivez-nous
                         </h4>
                         <p style={{ margin: "6px 0" }}>
