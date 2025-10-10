@@ -55,6 +55,10 @@ function Mentions() {
     );
 }
 
+/* Petit helper classes */
+const cx = (...c: Array<string | false | null | undefined>) =>
+    c.filter(Boolean).join(" ");
+
 export default function App() {
     const [route, setRoute] = useState<RouteKey>(getHashRoute());
     const [menuOpen, setMenuOpen] = useState(false);
@@ -83,9 +87,6 @@ export default function App() {
         };
         measure();
         window.addEventListener("resize", measure);
-        // remesure quand on ouvre/ferme (contenu potentiellement différent)
-        // et quand la route change (le style actif peut modifier la hauteur)
-        // eslint-disable-next-line react-hooks/exhaustive-deps
         return () => window.removeEventListener("resize", measure);
     }, []);
 
@@ -108,20 +109,6 @@ export default function App() {
 
     /* ====== Styles header ====== */
     const headerHeight = 56;
-    const headerStyle: React.CSSProperties = useMemo(
-        () => ({
-            position: "fixed",
-            insetInline: 0,
-            top: 0,
-            height: headerHeight,
-            zIndex: 40, // au-dessus de tout
-            backdropFilter: "blur(8px)",
-            WebkitBackdropFilter: "blur(8px)",
-            background: "rgba(249,248,246,0.78)",
-            borderBottom: `1px solid ${C.taupe}22`,
-        }),
-        []
-    );
 
     const linkStyle = (active: boolean): React.CSSProperties => ({
         textDecoration: "none",
@@ -150,6 +137,7 @@ export default function App() {
                 go(to);
             }}
             style={linkStyle(route === to)}
+            className="nav-link"
         >
             {children}
         </a>
@@ -160,27 +148,26 @@ export default function App() {
             className="font-[Cormorant_Garamond]"
             style={{ background: C.blanc, color: C.taupe, minHeight: "100dvh" }}
         >
-            {/* ─── Header ─────────────────────────── */}
-            <header style={headerStyle} role="banner" aria-label="En-tête principal">
+            {/* ─── Header (sticky, ne rétrécit pas) ─────────────────────────── */}
+            <header className="app-header" role="banner" aria-label="En-tête principal">
                 <nav
                     aria-label="Navigation principale"
+                    className="container"
                     style={{
-                        maxWidth: 1200,
-                        margin: "0 auto",
                         height: "100%",
                         display: "grid",
                         gridTemplateColumns: "1fr auto 1fr",
                         alignItems: "center",
-                        paddingInline: "clamp(12px,3vw,24px)",
                         columnGap: 12,
                     }}
                 >
-                    {/* Logo + hamburger (mobile uniquement) */}
+                    {/* Logo + hamburger (mobile) */}
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         {!isDesktop && (
                             <button
                                 aria-label={menuOpen ? "Fermer le menu" : "Ouvrir le menu"}
                                 aria-expanded={menuOpen}
+                                aria-controls="mobile-drawer"
                                 onClick={() => setMenuOpen((v) => !v)}
                                 style={{
                                     display: "inline-flex",
@@ -246,57 +233,44 @@ export default function App() {
                         <div />
                     )}
 
-                    {/* Espace à droite */}
+                    {/* Espace à droite (placeholder actions) */}
                     <div />
                 </nav>
-            </header>
 
-            {/* ─── Menu mobile (fixé sous le header) ─── */}
-            {!isDesktop && (
-                <div
-                    aria-hidden={!menuOpen}
-                    style={{
-                        position: "fixed",
-                        top: headerHeight,
-                        left: 0,
-                        right: 0,
-                        maxHeight: menuOpen ? menuNaturalH : 0,
-                        overflow: "hidden",
-                        transition: "max-height .28s ease",
-                        background: "rgba(249,248,246,0.96)",
-                        borderBottom: menuOpen
-                            ? `1px solid ${C.taupe}22`
-                            : "1px solid transparent",
-                        backdropFilter: "blur(4px)",
-                        WebkitBackdropFilter: "blur(4px)",
-                        zIndex: 39, // juste sous le header (40)
-                    }}
-                >
-                    {/* Contenu mesuré en permanence (pour scrollHeight) */}
+                {/* Menu mobile qui descend sous la barre et pousse le contenu */}
+                {!isDesktop && (
                     <div
-                        ref={menuRef}
-                        className="container"
+                        id="mobile-drawer"
+                        aria-hidden={!menuOpen}
+                        className="nav-drawer"
                         style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 10,
-                            padding: "12px clamp(12px,3vw,24px) 16px",
-                            maxWidth: 1200,
-                            margin: "0 auto",
+                            maxHeight: menuOpen ? menuNaturalH : 0,
+                            overflow: "hidden",
+                            transition: "max-height .28s ease",
                         }}
                     >
-                        <NavLink to="/">Accueil</NavLink>
-                        <NavLink to="/ou-partir">Où partir</NavLink>
-                        <NavLink to="/contact">Contact</NavLink>
+                        <div
+                            ref={menuRef}
+                            className="container"
+                            style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 10,
+                                padding: "12px 0 16px",
+                            }}
+                        >
+                            <NavLink to="/">Accueil</NavLink>
+                            <NavLink to="/ou-partir">Où partir</NavLink>
+                            <NavLink to="/contact">Contact</NavLink>
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+            </header>
 
-            {/* ─── Spacer sous le header (pousse le contenu quand menu ouvert) ─── */}
+            {/* Spacer: hauteur de la barre + (hauteur du tiroir si ouvert) */}
             <div
                 style={{
-                    height:
-                        headerHeight + (!isDesktop && menuOpen ? menuNaturalH : 0),
+                    height: headerHeight + (!isDesktop && menuOpen ? menuNaturalH : 0),
                 }}
             />
 

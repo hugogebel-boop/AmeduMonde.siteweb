@@ -254,7 +254,6 @@ export default function Accueil() {
                         pointerEvents: "none",
                     }}
                     loading="eager"
-                    fetchPriority="high"
                     draggable={false}
                 />
                 <div className="hero-top-fade" />
