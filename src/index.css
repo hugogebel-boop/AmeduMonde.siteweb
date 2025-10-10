@@ -178,36 +178,39 @@ input, select, textarea, button {
    ========================================= */
 @media (max-width: 640px) {
     html {
-        /* ↑ fait grandir toutes les tailles rem (incl. Tailwind) */
-        font-size: 18px; /* était 16px implicite */
+        /* Était 18px —> on augmente la base rem pour TOUT (y compris les text-* Tailwind) */
+        font-size: 19px; /* Passe à 20px si tu veux + grand partout */
     }
 
     body {
-        /* ↑ garantit un minimum confortable sur mobile */
-        font-size: clamp(18px, 4.6vw, 20px);
-        line-height: 1.8;
+        /* Était clamp(18px, 4.6vw, 20px) —> on muscle un peu */
+        font-size: clamp(19px, 5.2vw, 22px);
+        line-height: 1.85;
     }
 
-    /* Échelle titres mobile — sobres mais plus lisibles */
-    h1 {
-        font-size: clamp(28px, 7vw, 34px);
+    h1 { /* Était clamp(28px, 7vw, 34px) */
+        font-size: clamp(32px, 8.2vw, 38px);
+        line-height: 1.18;
     }
 
-    h2 {
-        font-size: clamp(24px, 6vw, 30px);
+    h2 { /* Était clamp(24px, 6vw, 30px) */
+        font-size: clamp(28px, 7.2vw, 34px);
+        line-height: 1.22;
     }
 
-    h3 {
-        font-size: clamp(20px, 5.2vw, 26px);
+    h3 { /* Était clamp(20px, 5.2vw, 26px) */
+        font-size: clamp(22px, 6.2vw, 28px);
+        line-height: 1.24;
     }
 
-    h4 {
-        font-size: clamp(18px, 4.8vw, 22px);
+    h4 { /* Était clamp(18px, 4.8vw, 22px) */
+        font-size: clamp(20px, 5.4vw, 24px);
+        line-height: 1.28;
     }
 
-    /* Empêche le zoom iOS tout en restant lisible */
+    /* Champs : ≥16px pour éviter le zoom auto iOS, mais on gagne en confort */
     input, select, textarea, button {
-        font-size: 17px; /* ≥16px pour iOS + un chouïa plus grand */
-        line-height: 1.4;
+        font-size: 18px;
+        line-height: 1.45;
     }
 }
